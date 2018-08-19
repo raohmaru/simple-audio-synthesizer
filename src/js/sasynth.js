@@ -49,7 +49,7 @@ const distortionCurves = [
 				deg = Math.PI / 270;
 			for (let i = 0; i < n_samples; ++i ) {
 				let x = i * 2 / n_samples - 1;
-				result;
+				let result;
 				if (x < 0) {
 				  result = ultraMetalequation(deg, k, Math.abs(x)) * -1;
 				} else {
