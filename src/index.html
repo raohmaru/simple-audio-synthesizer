@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Simple Synthesizer with Web Audio API</title>
+	<meta name="description" content="A simple sound synthesizer developed with the Web Audio API">
+	<meta name="author" content="Raohmaru">
+	<link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+
+<header>
+	<canvas width="600" height="300" id="canvas" title="Click to play the sound"></canvas>
+</header>
+
+<section class="audio-controls">
+	<form action="" id="audioForm">
+		<fieldset>
+			<div class="field field--centered">
+				<input type="button" value="Play" id="toggleAudio" />
+				<input type="reset" value="Reset" id="resetForm" />
+				<input type="button" value="Randomize" id="randomize" disabled />
+			</div>
+		</fieldset>
+		
+		<fieldset>
+			<div class="field">
+				<label class="label" for="oscillatorType" title="Create a periodic waveform">Wave:</label>
+				<select id="oscillatorType" title="Shape of waveform">
+					<option value="sine" title="Sine wave that describes a smooth periodic oscillation">Sine</option>
+					<option value="square" title="Square wave with a duty cycle of 0.5; that is, the signal is 'high' for half of each period">Square</option>
+					<option value="sawtooth" title="Sawtooth wave is a kind of non-sinusoidal waveform. It is so named based on its resemblance to the teeth of a plain-toothed saw with a zero rake angle.">Sawtooth</option>
+					<option value="triangle" title="Triangle wave is a non-sinusoidal waveform named for its triangular shape">Triangle</option>
+					<option value="noise" title="A perfectly random audio data with a flat frequency spectrum">White Noise</option>
+				</select>
+			</div>
+			
+			<div class="field field--long">
+				<label class="label" for="frequency" title="Frequency of oscillation in hertz">Frequency:</label>
+				<output for="frequency" id="frequency-output" data-unit="Hz">440</output>
+				<input type="range" min="10" max="4000" value="440" step="10" id="frequency" data-action="playSound">
+			</div>
+
+			<div class="field field--long field--long-xs">
+				<label class="label" for="volume" title="The amount of gain to be applied to the input data before its propagation to the output">Volume:</label>
+				<output for="volume" id="volume-output" data-unit="%">0.2</output>
+				<input type="range" min="0.01" max="1" value="0.2" step="0.01" id="volume" data-action="gainNode.gain">
+			</div>
+		</fieldset>
+
+		<fieldset>
+			<div class="field field--long">
+				<label class="label" for="attack" title="Time taken for initial run-up of level from nil to peak">Attack:</label>
+				<output for="attack" id="attack-output" data-unit="s">0</output>
+				<input type="range" min="0" max="2" value="0" step="0.01" id="attack">
+			</div>
+			
+			<div class="field field--long">
+				<label class="label" for="decay" title="Time taken for the subsequent run down from the attack level to the designated sustain level">Decay:</label>
+				<output for="decay" id="decay-output" data-unit="s">0</output>
+				<input type="range" min="0" max="2" value="0" step="0.01" id="decay">
+			</div>
+			
+			<div class="field field--long">
+				<label class="label" for="sustain" title="Once a sound has reached its peak, the length of time that the sound will sustain">Sustain:</label>
+				<output for="sustain" id="sustain-output" data-unit="s">1</output>
+				<input type="range" min="0.1" max="2" value="1" step="0.01" id="sustain">
+				
+				<label class="label" for="sustainlevel" title="The level during the main sequence of the sound's duration">Level:</label>
+				<output for="sustainlevel" id="sustainlevel-output" data-unit="%">0.6</output>
+				<input type="range" min="0.01" max="1" value="0.6" step="0.01" id="sustainlevel">
+			</div>
+			
+			<div class="field field--long">
+				<label class="label" for="release" title="Time taken for the level to decay from the sustain level to zero">Release:</label>
+				<output for="release" id="release-output" data-unit="s">0</output>
+				<input type="range" min="0" max="2" value="0" step="0.01" id="release">
+			</div>
+		</fieldset>
+
+		<fieldset>
+			<div class="field field--long">
+				<span>
+					<input type="checkbox" id="distortion-enable" title="Enable" data-node="distortion" />
+				</span>
+				<label class="label" for="distortion-enable" title="Applies a non-linear distorter. It uses a curve to apply a wave shaping distortion to the signal.">Distortion:</label>
+				<select id="distortion-curve" data-action="setDistorsionAmountCurve" title="A Float32Array of numbers describing the distortion to apply">
+					<option value="0">Default</option>
+					<option value="1">Karplus–Strong</option>
+					<option value="2">Vintage</option>
+					<option value="3">Ultra Metal</option>
+				</select>
+				<output for="distortion" id="distortion-output" title="The amount of distortion to apply">128</output>
+				<input type="range" min="0" max="255" value="128" step="1" id="distortion" data-action="setDistorsionAmount">
+			</div>
+
+			<div class="field">
+				<label class="label" for="oversample">Ovesample:</label>
+				<select id="oversample" data-action="setOversample" title="An enumerated value indicating if oversampling must be used. Oversampling is a technique for creating more samples (up-sampling) before applying the distortion effect to the audio signal.">
+					<option value="none">None</option>
+					<option value="2x">2x</option>
+					<option value="4x">4x</option>
+				</select>
+			</div>
+		</fieldset>
+
+		<fieldset>
+			<div class="field">
+				<span>
+					<input type="checkbox" id="biquad-enable" title="Enable" data-node="biquadFilter" />
+				</span>
+				<label class="label" for="biquad-enable" title="A simple low-order filter">Biquad:</label>
+				<select id="biquad-type" data-action="setBiquadType" title="The kind of filtering algorithm to apply">
+					<option value="lowpass" title="Standard second-order resonant lowpass filter with 12dB/octave rolloff. Frequencies below the cutoff pass through; frequencies above it are attenuated.">lowpass</option>
+					<option value="highpass" title="Standard second-order resonant highpass filter with 12dB/octave rolloff. Frequencies below the cutoff are attenuated; frequencies above it pass through.">highpass</option>
+					<option value="bandpass" title="Standard second-order bandpass filter. Frequencies outside the given range of frequencies are attenuated; the frequencies inside it pass through">bandpass</option>
+					<option value="lowshelf" title="Standard second-order lowshelf filter. Frequencies lower than the frequency get a boost, or an attenuation; frequencies over it are unchanged.">lowshelf</option>
+					<option value="highshelf" title="Standard second-order highshelf filter. Frequencies higher than the frequency get a boost or an attenuation; frequencies lower than it are unchanged.">highshelf</option>
+					<option value="peaking" title="Frequencies inside the range get a boost or an attenuation; frequencies outside it are unchanged.">peaking</option>
+					<option value="notch" title="Standard notch filter, also called a band-stop or band-rejection filter. It is the opposite of a bandpass filter: frequencies outside the give range of frequencies pass through; frequencies inside it are attenuated.">notch</option>
+					<option value="allpas" title="Standard second-order allpass filter. It lets all frequencies through, but changes the phase-relationship between the various frequencies.">allpas</option>
+				</select>
+			</div>
+
+			<div class="field field--long">
+				<label class="label" for="biquad-detune" title="The detuning of the frequency in cents (an octave is divided into 12 semitones of 100 cents each)">Detune:</label>
+				<output for="biquad-detune" id="biquad-detune-output" data-unit="c" title="cents">1</output>
+				<input type="range" min="0" max="1000" value="100" step="1" id="biquad-detune" data-action="biquadFilter.detune">
+			</div>
+
+			<div class="field field--long">
+				<label class="label" for="biquad-frequency" title="The frequency in the current filtering algorithm measured in hertz">Frequency:</label>
+				<output for="biquad-frequency" id="biquad-frequency-output" data-unit="Hz">350</output>
+				<input type="range" min="10" max="4000" value="350" step="10" id="biquad-frequency" data-action="biquadFilter.frequency">
+			</div>
+
+			<div class="field field--long">
+				<label class="label" for="biquad-gain" title="The gain used in the current filtering algorithm">Gain:</label>
+				<output for="biquad-gain" id="biquad-gain-output" data-unit="dB">0</output>
+				<input type="range" min="-40" max="40" value="0" step="1" id="biquad-gain" data-action="biquadFilter.gain">
+			</div>
+
+			<div class="field field--long">
+				<label class="label" for="biquad-q" title="Represents the Q factor (it describes how underdamped an oscillator is, and characterizes a resonator's bandwidth relative to its centre frequency)">Q:</label>
+				<output for="biquad-q" id="biquad-q-output">1</output>
+				<input type="range" min="0.0001" max="1000" value="1" step="0.0001" id="biquad-q" data-action="biquadFilter.Q">
+			</div>
+		</fieldset>
+
+		<fieldset>
+			<div class="field">
+				<span>
+					<input type="checkbox" id="reverb-enable" title="Enable" data-node="reverbNode" data-action="createReverb" />
+				</span>
+				<label class="label" for="reverb-enable" title="Performs a Linear Convolution on a given AudioBuffer, often used to achieve a reverb effect">Reverb:</label>
+				<select id="reverb-impulse" data-action="createReverb" title="The impulse response used to create the reverb effect">
+					<option value="0">Noise</option>
+					<option value="1" data-impulse="impulseResponseRoom">Room</option>
+					<option value="2" data-impulse="impulseResponseMediumHall">Medium Hall</option>
+					<option value="3" data-impulse="impulseResponseConcertHall">Concert Hall</option>
+					<option value="4" data-impulse="impulseResponseCavern">Cavern</option>
+					<option value="5" data-impulse="impulseResponseBrightPlate">Bright Plate</option>
+					<option value="6" data-impulse="impulseResponseOldChamber">Old Chamber</option>
+				</select>
+			</div>
+		</fieldset>
+		
+		<fieldset>
+			<div class="field">
+				<span>
+					<input type="checkbox" id="dynacompr-enable" title="Enable" data-node="dynacomprNode" />
+				</span>
+				<label class="label label--long" for="dynacompr-enable" title="Provides a compression effect, which lowers the volume of the loudest parts of the signal in order to help prevent clipping and distortion that can occur when multiple sounds are played and multiplexed together at once">Dynamics Compressor:</label>
+			</div>
+
+			<div class="field field--long">
+				<label class="label" for="dynacompr-threshold" title="The decibel value above which the compression will start taking effect">Threshold:</label>
+				<output for="dynacompr-threshold" id="dynacompr-threshold-output" data-unit="dB" title="decibels">-24</output>
+				<input type="range" min="-100" max="0" value="-24" step="0.1" id="dynacompr-threshold" data-action="dynacomprNode.threshold">
+			</div>
+
+			<div class="field field--long">
+				<label class="label" for="dynacompr-knee" title="A decibel value representing the range above the threshold where the curve smoothly transitions to the compressed portion">Knee:</label>
+				<output for="dynacompr-knee" id="dynacompr-knee-output" data-unit="dB">30</output>
+				<input type="range" min="0" max="40" value="30" step="0.1" id="dynacompr-knee" data-action="dynacomprNode.knee">
+			</div>
+
+			<div class="field field--long">
+				<label class="label" for="dynacompr-ratio" title="Represents the amount of change, in dB, needed in the input for a 1 dB change in the output">Ratio:</label>
+				<output for="dynacompr-ratio" id="dynacompr-ratio-output" data-unit="dB">12</output>
+				<input type="range" min="1" max="20" value="12" step="0.1" id="dynacompr-ratio" data-action="dynacomprNode.ratio">
+			</div>
+
+			<div class="field field--long">
+				<label class="label" for="dynacompr-attack" title="The amount of time, in seconds, required to reduce the gain by 10 dB. It defines how quickly the signal is adapted when its volume is increased.">Attack:</label>
+				<output for="dynacompr-attack" id="dynacompr-attack-output">0.003</output>
+				<input type="range" min="0" max="1" value="0.003" step="0.0001" id="dynacompr-attack" data-action="dynacomprNode.attack">
+			</div>
+
+			<div class="field field--long">
+				<label class="label" for="dynacompr-release" title="The amount of time, in seconds, required to increase the gain by 10 dB. It defines how quick the signal is adapted when its volume is reduced.">Release:</label>
+				<output for="dynacompr-release" id="dynacompr-release-output">0.25</output>
+				<input type="range" min="0" max="1" value="0.25" step="0.0001" id="dynacompr-release" data-action="dynacomprNode.release">
+			</div>
+		</fieldset>
+	</form>
+</section>
+
+<footer>
+	<ul>
+		<li class="footer__link">Developed with a baton by &copy;2018 <a href="https://raohmaru.com/" target="_blank">Raohmaru</a></li>
+		<li class="footer__link"><a href="{link}" target="_blank">Source code</a></li>
+	</ul>
+</footer>
+
+<script src="js/impulses/room.js"></script>
+<script src="js/impulses/medium-hall.js"></script>
+<script src="js/impulses/concert-hall.js"></script>
+<script src="js/impulses/cavern.js"></script>
+<script src="js/impulses/bright-plate.js"></script>
+<script src="js/impulses/old-chamber.js"></script>
+<script src="js/sasynth.js"></script>
+
+</body>
+</html>
