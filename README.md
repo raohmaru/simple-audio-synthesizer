@@ -1,7 +1,7 @@
 # Simple Synthesizer with Web Audio API
 An audio synthesizer build with [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API).
 
-&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;  &#x1F3B5; &#x1F3B5; &#x1F3B5;
+&#x1F3B5; &nbsp; [Try it now](https://raohmaru.github.io/simple-audio-synthesizer/src/) &nbsp; &#x1F3B5;
 
 It uses the [OscillatorNode](https://developer.mozilla.org/en-US/docs/Web/API/OscillatorNode) or
 white noise to generate a sound, which can be manipulated with the different [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode)
