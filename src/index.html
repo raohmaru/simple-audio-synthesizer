@@ -20,7 +20,7 @@
 			<div class="field field--centered">
 				<input type="button" value="Play" id="toggleAudio" />
 				<input type="reset" value="Reset" id="resetForm" />
-				<input type="button" value="Randomize" id="randomize" disabled />
+				<input type="button" value="Export" id="export" title="Export sound as an audio file" />
 			</div>
 		</fieldset>
 		
@@ -84,7 +84,7 @@
 				<span>
 					<input type="checkbox" id="distortion-enable" title="Enable" data-node="distortion" />
 				</span>
-				<label class="label" for="distortion-enable" title="Applies a non-linear distorter. It uses a curve to apply a wave shaping distortion to the signal.">Distortion:</label>
+				<label class="label" for="distortion-enable" title="Applies a non-linear distorter. It uses a curve to apply a wave shaping distortion to the signal."><strong>Distortion</strong>:</label>
 				<select id="distortion-curve" data-action="setDistorsionAmountCurve" title="A Float32Array of numbers describing the distortion to apply">
 					<option value="0">Default</option>
 					<option value="1">Karplus–Strong</option>
@@ -96,8 +96,8 @@
 			</div>
 
 			<div class="field">
-				<label class="label" for="oversample">Ovesample:</label>
-				<select id="oversample" data-action="setOversample" title="An enumerated value indicating if oversampling must be used. Oversampling is a technique for creating more samples (up-sampling) before applying the distortion effect to the audio signal.">
+				<label class="label" for="oversample" title="Oversampling is a technique for creating more samples (up-sampling) before applying the distortion effect to the audio signal.">Ovesample:</label>
+				<select id="oversample" data-action="setOversample">
 					<option value="none">None</option>
 					<option value="2x">2x</option>
 					<option value="4x">4x</option>
@@ -110,7 +110,7 @@
 				<span>
 					<input type="checkbox" id="biquad-enable" title="Enable" data-node="biquadFilter" />
 				</span>
-				<label class="label" for="biquad-enable" title="A simple low-order filter">Biquad:</label>
+				<label class="label" for="biquad-enable" title="A simple low-order filter"><strong>Biquad</strong>:</label>
 				<select id="biquad-type" data-action="setBiquadType" title="The kind of filtering algorithm to apply">
 					<option value="lowpass" title="Standard second-order resonant lowpass filter with 12dB/octave rolloff. Frequencies below the cutoff pass through; frequencies above it are attenuated.">lowpass</option>
 					<option value="highpass" title="Standard second-order resonant highpass filter with 12dB/octave rolloff. Frequencies below the cutoff are attenuated; frequencies above it pass through.">highpass</option>
@@ -153,15 +153,15 @@
 				<span>
 					<input type="checkbox" id="reverb-enable" title="Enable" data-node="reverbNode" data-action="createReverb" />
 				</span>
-				<label class="label" for="reverb-enable" title="Performs a Linear Convolution on a given AudioBuffer, often used to achieve a reverb effect">Reverb:</label>
+				<label class="label" for="reverb-enable" title="Performs a Linear Convolution on a given AudioBuffer, often used to achieve a reverb effect"><strong>Reverb</strong>:</label>
 				<select id="reverb-impulse" data-action="createReverb" title="The impulse response used to create the reverb effect">
 					<option value="0">Noise</option>
-					<option value="1" data-impulse="impulseResponseRoom">Room</option>
-					<option value="2" data-impulse="impulseResponseMediumHall">Medium Hall</option>
-					<option value="3" data-impulse="impulseResponseConcertHall">Concert Hall</option>
-					<option value="4" data-impulse="impulseResponseCavern">Cavern</option>
-					<option value="5" data-impulse="impulseResponseBrightPlate">Bright Plate</option>
-					<option value="6" data-impulse="impulseResponseOldChamber">Old Chamber</option>
+					<option value="1">Room</option>
+					<option value="2">Medium Hall</option>
+					<option value="3">Concert Hall</option>
+					<option value="4">Cavern</option>
+					<option value="5">Bright Plate</option>
+					<option value="6">Old Chamber</option>
 				</select>
 			</div>
 		</fieldset>
@@ -171,7 +171,7 @@
 				<span>
 					<input type="checkbox" id="dynacompr-enable" title="Enable" data-node="dynacomprNode" />
 				</span>
-				<label class="label label--long" for="dynacompr-enable" title="Provides a compression effect, which lowers the volume of the loudest parts of the signal in order to help prevent clipping and distortion that can occur when multiple sounds are played and multiplexed together at once">Dynamics Compressor:</label>
+				<label class="label label--long" for="dynacompr-enable" title="Provides a compression effect, which lowers the volume of the loudest parts of the signal in order to help prevent clipping and distortion that can occur when multiple sounds are played and multiplexed together at once"><strong>Dynamics Compressor</strong>:</label>
 			</div>
 
 			<div class="field field--long">
@@ -209,18 +209,12 @@
 
 <footer>
 	<ul>
-		<li class="footer__link">Developed with a baton by &copy;2018 <a href="https://raohmaru.com/" target="_blank">Raohmaru</a></li>
+		<li class="footer__link">Developed with a baton by &copy;2019 <a href="https://raohmaru.com/" target="_blank">Raohmaru</a></li>
 		<li class="footer__link"><a href="https://github.com/raohmaru/simple-audio-synthesizer" target="_blank">Source code</a></li>
 	</ul>
 </footer>
 
-<script src="js/impulses/room.js"></script>
-<script src="js/impulses/medium-hall.js"></script>
-<script src="js/impulses/concert-hall.js"></script>
-<script src="js/impulses/cavern.js"></script>
-<script src="js/impulses/bright-plate.js"></script>
-<script src="js/impulses/old-chamber.js"></script>
-<script src="js/sasynth.js"></script>
+<script src="js/sasynth.js" type="module"></script>
 
 </body>
 </html>

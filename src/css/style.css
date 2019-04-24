@@ -16,6 +16,7 @@ canvas {
 	max-width: 100%;
 	margin: 0 auto;
 	border: solid 10px #fff;
+	cursor: pointer;
 }
 
 label,
@@ -59,6 +60,10 @@ a {
 	a:hover {
 		color: rgb(0, 200, 200);
 	}
+	
+ul {
+	padding: 0;
+}
 
 .audio-controls {
 	max-width: 626px;

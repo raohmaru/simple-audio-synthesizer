@@ -1,65 +1,6 @@
-(function(){
+import distortionCurves from './distortionCurves.js';
+import impulses from './impulses/index.js';
 
-// Creating an audio context
-const distortionCurves = [
-		// function to make curve shape for distortion/wave shaper node to use
-		// https://stackoverflow.com/questions/22312841/waveshaper-node-in-webaudio-how-to-emulate-distortion
-		function(amount, freq) {
-			 const k = parseInt(amount, 10),
-				n_samples = freq * 100,
-				curve = new Float32Array(n_samples),
-				deg = Math.PI / 180;
-			for (let i = 0; i < n_samples; ++i ) {
-				let x = i * 2 / n_samples - 1;
-				curve[i] = ( 3 + k ) * x * 20 * deg / ( Math.PI + k * Math.abs(x) );
-			}
-			return curve;
-		},
-		// Karplus–Strong
-		// https://github.com/mohayonao/pluck-string-node/
-		function(amount) {
-			const len = parseInt(amount, 10) || 5,
-				curve = new Float32Array(len);
-			for (let i = 0; i < len; ++i ) {
-				curve[i] = Math.random() * 2 - 1;
-			}
-			curve[(len >> 1)] = 0;
-
-			return curve;
-		},
-		// Vintage
-		// https://github.com/CSynths/Howler-Plus/blob/master/src/Distortion/VintageDistortion/curve.js
-		function(amount, freq) {
-			const k = amount,
-				n_samples = freq * 100,
-				curve = new Float32Array(n_samples),
-				deg = Math.PI / 200;
-			for (let i = 0; i < n_samples; ++i ) {
-				let x = i * 2 / n_samples - 1;
-				curve[i] = (3 + k) * Math.sin(x) * 10 * deg / (Math.PI + (k * 0.9) * Math.abs(x));
-			}
-			return curve;
-		},
-		// Ultra Metal
-		// https://github.com/CSynths/Howler-Plus/blob/master/src/Distortion/UltraMetalDistortion/curve.js
-		function(amount, freq) {
-			const k = amount,
-				n_samples = freq * 100,
-				curve = new Float32Array(n_samples),
-				deg = Math.PI / 270;
-			for (let i = 0; i < n_samples; ++i ) {
-				let x = i * 2 / n_samples - 1;
-				let result;
-				if (x < 0) {
-				  result = ultraMetalequation(deg, k, Math.abs(x)) * -1;
-				} else {
-					result = ultraMetalequation(deg, k, x);
-				}
-				curve[i] = result;
-			}
-			return curve;
-		}
-	];
 let distortionCurveIdx,
 	audioCtx,
 	generatorNode,
@@ -72,11 +13,8 @@ let distortionCurveIdx,
 	analyser,
 	audioNodes,
 	timeoutID,
-	whiteNoiseBuffer;
-	
-function ultraMetalequation(deg, k, x) {
-    return ( 3 + k ) * Math.pow(x, 0.6) * 10 * deg / ( Math.PI + k * Math.abs(Math.pow(x, 0.6)) );
-}
+	whiteNoiseBuffer,
+	recording;
 
 function createNodes() {
 	// Creating an audio context
@@ -141,6 +79,7 @@ function addOscillatorOrNoiseNode() {
 // Linking source and destination nodes together
 function connectNodes() {
 	let enabledNodes = audioNodes.filter(node => node && (node.enabled || node.enabled === undefined));
+	let dest = recording ? mediaStream : audioCtx.destination;
 		
 	for(let i=0; i<audioNodes.length; i++) {
 		audioNodes[i] && audioNodes[i].disconnect();
@@ -149,7 +88,7 @@ function connectNodes() {
 	for(let i=0; i<enabledNodes.length - 1; i++) {
 		enabledNodes[i].connect(enabledNodes[i+1]);
 	}
-	enabledNodes[enabledNodes.length-1].connect(audioCtx.destination);
+	enabledNodes[enabledNodes.length-1].connect(dest);
 }
 
 function setDefaultValues() {
@@ -201,10 +140,8 @@ function setDefaultValues() {
 	reverbNode.normalize = true;
 }
 
-function playSound() {
+function playSound(viz = true) {
 	let dur = getSoundDuration();
-	window.clearTimeout(timeoutID);
-	timeoutID = window.setTimeout(stopSound, dur * 1000);
 	if(audioCtx.state === 'running') {
 		addOscillatorOrNoiseNode();
 		setEnvelope();
@@ -212,11 +149,21 @@ function playSound() {
 		audioCtx.resume().then(() => {
 			addOscillatorOrNoiseNode();
 			setEnvelope();
-			visualize();
+			if(viz) {
+				visualize();
+			}
 			btnToggleAudio.value = "Stop";
 		});
 	}
 	console.log(`Playing sound for ${dur}s`);
+	
+	return new Promise((resolve, reject) => {
+		window.clearTimeout(timeoutID);
+		timeoutID = window.setTimeout(() => {
+			stopSound();
+			resolve();
+		}, dur * 1000);
+	});
 }
 
 function stopSound() {
@@ -253,7 +200,7 @@ function createReverb() {
 			break;
 		default:
 			// Impulses are base64 encoded sounds stored at impulses/*.js
-			let impulse = window[selImpulse.options[selImpulse.selectedIndex].dataset.impulse];
+			let impulse = impulses[selImpulse.value - 1];
 			// Duration of impulse in seconds
 			const impulseDuration = 3.0186041666666665;
 			let reverbSoundArrayBuffer = base64ToArrayBuffer(impulse),
@@ -300,7 +247,7 @@ function buildImpulse(seconds, decay, reverse) {
 		impulseR = impulse.getChannelData(1);
 
 	for (let i = 0; i < len; i++) {
-		let n = this.reverse ? len - i : i;
+		let n = reverse ? len - i : i;
 		impulseL[i] = (Math.random() * 2 - 1) * Math.pow(1 - n / len, decay);
 		impulseR[i] = (Math.random() * 2 - 1) * Math.pow(1 - n / len, decay);
 	}
@@ -373,6 +320,7 @@ function draw() {
 // UI //////////////////////////////////////////////////////////////////////////////////////////////
 let	audioForm          = document.getElementById('audioForm'),
 	btnToggleAudio     = document.getElementById('toggleAudio'),
+	btnExport          = document.getElementById('export'),
 	biquadParamsByType = {
 		lowpass  : {q: true,  gain: false},
 		highpass : {q: true,  gain: false},
@@ -387,6 +335,7 @@ let	audioForm          = document.getElementById('audioForm'),
 function initUI() {
 	audioForm.addEventListener('reset', resetForm);
 	btnToggleAudio.addEventListener('click', toggleAudio);
+	btnExport.addEventListener('click', exportAudio);
 	canvas.addEventListener('click', toggleAudio);
 	
 	[].slice.apply(document.querySelectorAll('select'))
@@ -512,6 +461,37 @@ function setBiquadType(e) {
 	document.getElementById('biquad-gain').disabled = !params.gain;
 }
 
+// Recording audio
+let mediaStream;
+let mediaRecorder;
+let chunks = [];
+
+function exportAudio() {
+	if(!mediaStream) {
+		mediaStream = audioCtx.createMediaStreamDestination();
+		mediaRecorder = new MediaRecorder(mediaStream.stream);
+		mediaRecorder.ondataavailable = function(evt) {
+			// push each chunk (blobs) in an array
+			chunks.push(evt.data);
+		};
+		mediaRecorder.onstop = function(evt) {
+			// Make blob out of our blobs, and open it.
+			const blob = new Blob(chunks, { 'type' : 'audio/ogg; codecs=opus' });
+			const src = URL.createObjectURL(blob);
+			window.open(src, 'sasynth-export');
+			URL.revokeObjectURL(src);
+			chunks.length = 0;
+		};
+	}
+	recording = true;
+	mediaRecorder.start();
+	playSound(false).then(() => {
+		recording = false;
+		mediaRecorder.requestData();
+		mediaRecorder.stop();
+	});
+}
+
 
 // Release the Kraken with an electric guitar ///////////////////////////////////////////////////////
 function init() {
@@ -521,5 +501,3 @@ function init() {
 }
 
 init();
-
-})();
