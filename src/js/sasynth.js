@@ -1,20 +1,20 @@
 import distortionCurves from './distortionCurves.js';
 import impulses from './impulses/index.js';
 
-let distortionCurveIdx,
-	audioCtx,
-	generatorNode,
-	distortion,
-	biquadFilter,
-	gainNode,
-	envelopeNode,
-	reverbNode,
-	dynacomprNode,
-	analyser,
-	audioNodes,
-	timeoutID,
-	whiteNoiseBuffer,
-	recording;
+let distortionCurveIdx;
+let audioCtx;
+let generatorNode;
+let distortion;
+let biquadFilter;
+let gainNode;
+let envelopeNode;
+let reverbNode;
+let dynacomprNode;
+let analyser;
+let audioNodes;
+let timeoutID;
+let whiteNoiseBuffer;
+let recording;
 
 function createNodes() {
 	// Creating an audio context
@@ -65,11 +65,13 @@ function addOscillatorOrNoiseNode() {
 		// Sine wave — other values are 'square', 'sawtooth', 'triangle' and 'custom'
 		generatorNode.type = nodeType;
 		generatorNode.frequency.value = document.getElementById('frequency').value; // value in hertz. Default is 440
+		generatorNode.detune.value = document.getElementById('detune').value; // value in cents. Default is 100
 	} else {
 		generatorNode = createWhiteNoise();
 	}
 	
 	document.getElementById('frequency').disabled = nodeType === 'noise';
+	document.getElementById('detune').disabled = nodeType === 'noise';
 	
 	audioNodes[0] = generatorNode;
 	connectNodes();
@@ -176,6 +178,7 @@ function stopSound() {
 		}
 		generatorNode = undefined;
 		btnToggleAudio.value = "Play";
+		resetVisualization();
 	});
 }
 
@@ -221,8 +224,8 @@ function createReverb() {
 
 // https://noisehack.com/generate-noise-web-audio-api/
 function createWhiteNoise() {
-	const bufferSize = 2 * audioCtx.sampleRate
-		sourceNode = audioCtx.createBufferSource();
+	const bufferSize = 2 * audioCtx.sampleRate;
+	const sourceNode = audioCtx.createBufferSource();
 	let output;
 		
 	if(!whiteNoiseBuffer) {
@@ -267,16 +270,18 @@ function base64ToArrayBuffer(base64) {
 
 
 // Visualization ///////////////////////////////////////////////////////////////////////////////////
-let canvas = document.getElementById('canvas'),
-	canvasCtx = canvas.getContext('2d'),
-	bufferLength,
-	dataArray,
-	rafID;
-const WIDTH = canvas.width,
-	  HEIGHT = canvas.height;
+let canvas = document.getElementById('canvas');
+let canvasCtx = canvas.getContext('2d');
+let bufferLength;
+let dataArray;
+let rafID;
+const WIDTH = canvas.width;
+const HEIGHT = canvas.height;
+const HEIGHT_2 = HEIGHT / 2;
 	  
-canvasCtx.fillStyle = 'rgba(0, 200, 200, 0.5)';
-canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+canvasCtx.fillStyle = 'rgb(0, 200, 200)';
+canvasCtx.lineWidth = 2;
+canvasCtx.strokeStyle = 'rgb(255, 255, 255)';
 
 function visualize() {
 	bufferLength = analyser.frequencyBinCount; // half the FFT value
@@ -290,8 +295,6 @@ function draw() {
 	analyser.getByteTimeDomainData(dataArray); // get waveform data and put it into the array created above
 
 	canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
-	canvasCtx.lineWidth = 1;
-	canvasCtx.strokeStyle = 'rgb(255, 255, 255)';
 	canvasCtx.beginPath();
 
 	let sliceWidth = WIDTH * 1.0 / bufferLength,
@@ -301,7 +304,7 @@ function draw() {
 
 	for(let i = 0; i < bufferLength; i++) {
 		v = dataArray[i] / 128.0;
-		y = v * HEIGHT/2;
+		y = v * HEIGHT_2;
 
 		if(i === 0) {
 			canvasCtx.moveTo(x, y);
@@ -312,9 +315,19 @@ function draw() {
 		x += sliceWidth;
 	}
 
-	canvasCtx.lineTo(canvas.width, canvas.height/2);
+	canvasCtx.lineTo(WIDTH, HEIGHT_2);
 	canvasCtx.stroke();
-};
+}
+
+function resetVisualization() {
+	canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+	canvasCtx.beginPath();
+	canvasCtx.moveTo(0, HEIGHT_2);
+	canvasCtx.lineTo(WIDTH, HEIGHT_2);
+	canvasCtx.stroke();
+}
+
+resetVisualization();
 
 
 // UI //////////////////////////////////////////////////////////////////////////////////////////////
