@@ -21,9 +21,12 @@
 				<input type="button" value="Play" id="toggleAudio" />
 				<input type="reset" value="Reset" id="resetForm" />
 				<input type="button" value="Export" id="export" title="Export sound as an audio file" />
+				<input type="button" value="Process" id="process" title="Process audio and store it in memory" />
 			</div>
 		</fieldset>
-		
+
+		<div class="audios"></div>
+
 		<fieldset>
 			<div class="field">
 				<label class="label" for="oscillatorType" title="Create a periodic waveform">Wave:</label>
@@ -35,7 +38,7 @@
 					<option value="noise" title="A perfectly random audio data with a flat frequency spectrum">White Noise</option>
 				</select>
 			</div>
-			
+
 			<div class="field field--long">
 				<label class="label" for="frequency" title="Frequency of oscillation in hertz">Frequency:</label>
 				<output for="frequency" id="frequency-output" data-unit="Hz">440</output>
@@ -61,23 +64,23 @@
 				<output for="attack" id="attack-output" data-unit="s">0</output>
 				<input type="range" min="0" max="2" value="0" step="0.01" id="attack">
 			</div>
-			
+
 			<div class="field field--long">
 				<label class="label" for="decay" title="Time taken for the subsequent run down from the attack level to the designated sustain level">Decay:</label>
 				<output for="decay" id="decay-output" data-unit="s">0</output>
 				<input type="range" min="0" max="2" value="0" step="0.01" id="decay">
 			</div>
-			
+
 			<div class="field field--long">
 				<label class="label" for="sustain" title="Once a sound has reached its peak, the length of time that the sound will sustain">Sustain:</label>
 				<output for="sustain" id="sustain-output" data-unit="s">1</output>
 				<input type="range" min="0.1" max="2" value="1" step="0.01" id="sustain">
-				
+
 				<label class="label" for="sustainlevel" title="The level during the main sequence of the sound's duration">Level:</label>
 				<output for="sustainlevel" id="sustainlevel-output" data-unit="%">0.6</output>
 				<input type="range" min="0.01" max="1" value="0.6" step="0.01" id="sustainlevel">
 			</div>
-			
+
 			<div class="field field--long">
 				<label class="label" for="release" title="Time taken for the level to decay from the sustain level to zero">Release:</label>
 				<output for="release" id="release-output" data-unit="s">0</output>
@@ -171,7 +174,7 @@
 				</select>
 			</div>
 		</fieldset>
-		
+
 		<fieldset>
 			<div class="field">
 				<span>

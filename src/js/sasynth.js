@@ -31,10 +31,10 @@ function createNodes() {
 	// Represents a node able to provide real-time frequency and time-domain analysis information
 	analyser = audioCtx.createAnalyser();
 	// Performs a Linear Convolution on a given AudioBuffer, often used to achieve a reverb effect
-	reverbNode = audioCtx.createConvolver();	
+	reverbNode = audioCtx.createConvolver();
 	// Performs a Linear Convolution on a given AudioBuffer, often used to achieve a reverb effect
-	dynacomprNode = audioCtx.createDynamicsCompressor();	
-	
+	dynacomprNode = audioCtx.createDynamicsCompressor();
+
 	audioNodes = [
 		undefined,  // generatorNode will go here
 		 distortion
@@ -48,7 +48,7 @@ function createNodes() {
 }
 
 // Create an oscilator audio source that will provide a simple tone
-// 
+//
 // Oscillators, by design, are only able to be started and stopped exactly once. This is actually
 // better for performance, because it means they won’t be hanging around in memory waiting to be
 // used when they don’t need to be.
@@ -59,20 +59,20 @@ function addOscillatorOrNoiseNode() {
 		generatorNode.stop();
 		generatorNode.disconnect();
 	}
-	
-	if(nodeType !== 'noise') {
+
+	if(nodeType === 'noise') {
+		generatorNode = createWhiteNoise();
+	} else {
 		generatorNode = audioCtx.createOscillator();
 		// Sine wave — other values are 'square', 'sawtooth', 'triangle' and 'custom'
 		generatorNode.type = nodeType;
 		generatorNode.frequency.value = document.getElementById('frequency').value; // value in hertz. Default is 440
 		generatorNode.detune.value = document.getElementById('detune').value; // value in cents. Default is 100
-	} else {
-		generatorNode = createWhiteNoise();
 	}
-	
+
 	document.getElementById('frequency').disabled = nodeType === 'noise';
 	document.getElementById('detune').disabled = nodeType === 'noise';
-	
+
 	audioNodes[0] = generatorNode;
 	connectNodes();
 	generatorNode.start();
@@ -82,11 +82,11 @@ function addOscillatorOrNoiseNode() {
 function connectNodes() {
 	let enabledNodes = audioNodes.filter(node => node && (node.enabled || node.enabled === undefined));
 	let dest = recording ? mediaStream : audioCtx.destination;
-		
+
 	for(let i=0; i<audioNodes.length; i++) {
 		audioNodes[i] && audioNodes[i].disconnect();
 	}
-	
+
 	for(let i=0; i<enabledNodes.length - 1; i++) {
 		enabledNodes[i].connect(enabledNodes[i+1]);
 	}
@@ -103,7 +103,7 @@ function setDefaultValues() {
 				eval(el.dataset.action+'()');
 			}
 		});
-	
+
 	// Set values from input ranges
 	[].slice.apply(document.querySelectorAll('input[type="range"]'))
 		.forEach(el => {
@@ -111,8 +111,8 @@ function setDefaultValues() {
 			if(aparam instanceof AudioParam) {
 				aparam.setValueAtTime(el.value, audioCtx.currentTime);
 			}
-		});	
-		
+		});
+
 	// Set values from selects
 	[].slice.apply(document.querySelectorAll('select'))
 		.forEach(el => {
@@ -124,20 +124,20 @@ function setDefaultValues() {
 				}
 			}
 		});
-		
+
 	distortionCurveIdx = document.getElementById('distortion-curve').value;
-	
+
 	// Describes the distortion to apply
 	distortion.curve = distortionCurves[distortionCurveIdx](document.getElementById('distortion').value, document.getElementById('frequency').value);
 	distortion.oversample = document.getElementById('oversample').value;  // Values: 'none', '2x', '4x'
 
 	// Initial volume
-	envelopeNode.gain.value = 1;	
+	envelopeNode.gain.value = 1;
 
 	// Size of the Fast Fourier Transform. Must be a power of 2 between 2^5 and 2^15. Defaults to 2048.
 	// (32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, and 32768.)
 	analyser.fftSize = 2048;
-	
+
 	// Controls whether the impulse response from the buffer will be scaled by an equal-power normalization.
 	reverbNode.normalize = true;
 }
@@ -158,7 +158,7 @@ function playSound(viz = true) {
 		});
 	}
 	console.log(`Playing sound for ${dur}s`);
-	
+
 	return new Promise((resolve, reject) => {
 		window.clearTimeout(timeoutID);
 		timeoutID = window.setTimeout(() => {
@@ -224,10 +224,10 @@ function createReverb() {
 
 // https://noisehack.com/generate-noise-web-audio-api/
 function createWhiteNoise() {
-	const bufferSize = 2 * audioCtx.sampleRate;
+	const bufferSize = audioCtx.sampleRate;
 	const sourceNode = audioCtx.createBufferSource();
 	let output;
-		
+
 	if(!whiteNoiseBuffer) {
 		whiteNoiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
 		output = whiteNoiseBuffer.getChannelData(0);
@@ -278,7 +278,7 @@ let rafID;
 const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 const HEIGHT_2 = HEIGHT / 2;
-	  
+
 canvasCtx.fillStyle = 'rgb(0, 200, 200)';
 canvasCtx.lineWidth = 2;
 canvasCtx.strokeStyle = 'rgb(255, 255, 255)';
@@ -334,6 +334,7 @@ resetVisualization();
 let	audioForm          = document.getElementById('audioForm'),
 	btnToggleAudio     = document.getElementById('toggleAudio'),
 	btnExport          = document.getElementById('export'),
+	btnProcess         = document.getElementById('process'),
 	biquadParamsByType = {
 		lowpass  : {q: true,  gain: false},
 		highpass : {q: true,  gain: false},
@@ -344,19 +345,20 @@ let	audioForm          = document.getElementById('audioForm'),
 		notch    : {q: true,  gain: false},
 		allpas   : {q: true,  gain: false}
 	};
-	
+
 function initUI() {
 	audioForm.addEventListener('reset', resetForm);
 	btnToggleAudio.addEventListener('click', toggleAudio);
 	btnExport.addEventListener('click', exportAudio);
+	btnProcess.addEventListener('click', processAudio);
 	canvas.addEventListener('click', toggleAudio);
-	
+
 	[].slice.apply(document.querySelectorAll('select'))
 		.forEach(el => selectListener(el, eval(el.dataset.action)));
-	
+
 	[].slice.apply(document.querySelectorAll('input[type="range"]'))
 		.forEach(el => stepListener(el, eval(el.dataset.action)));
-	
+
 	[].slice.apply(document.querySelectorAll('input[type="checkbox"][id$="enable"]'))
 		.forEach(el => {
 			enableNodeListener(el, eval(el.dataset.node));
@@ -364,7 +366,7 @@ function initUI() {
 				eval(el.dataset.action+'()');
 			}
 		});
-	
+
 	setBiquadType();
 }
 
@@ -379,11 +381,11 @@ function resetForm(e) {
 function stepListener(obj, handler) {
 	let output = document.getElementById(obj.id + '-output');
 	output.value = obj.value;
-	
+
 	obj.addEventListener('input', e => {
 		output.value = e.target.value;
 	});
-	
+
 	obj.addEventListener('change', e => {
 		if(handler instanceof AudioParam) {
 			handler.setValueAtTime(e.target.value, audioCtx.currentTime);
@@ -392,14 +394,14 @@ function stepListener(obj, handler) {
 		}
 		playSound();
 	});
-	
+
 	audioForm.addEventListener('afterreset', e => {
 		output.value = obj.value;
 	});
 }
 
 function selectListener(obj, handler) {
-	let cb = e => {		
+	let cb = e => {
 		if(handler instanceof AudioNode) {
 			handler.type = e.target.value;
 		} else if(handler) {
@@ -486,6 +488,7 @@ function exportAudio() {
 		mediaRecorder.ondataavailable = function(evt) {
 			// push each chunk (blobs) in an array
 			chunks.push(evt.data);
+			console.log(evt);
 		};
 		mediaRecorder.onstop = function(evt) {
 			// Make blob out of our blobs, and open it.
@@ -502,6 +505,54 @@ function exportAudio() {
 		recording = false;
 		mediaRecorder.requestData();
 		mediaRecorder.stop();
+	});
+}
+
+// Process audio
+let audioCount = 0;
+
+function processAudio() {
+	const buffer = audioCtx.createBuffer(2, getSoundDuration() * audioCtx.sampleRate, audioCtx.sampleRate);
+	let currPos = 0;
+	btnProcess.value = "Processing...";
+	btnProcess.setAttribute('disabled', true);
+
+	const scriptNode = audioCtx.createScriptProcessor(2048, 2, 2);
+	scriptNode.onaudioprocess = function(audioProcessingEvent) {
+		// Stores input buffer data into an AudioBuffer
+		const inputBuffer = audioProcessingEvent.inputBuffer;
+		const inputData0 = inputBuffer.getChannelData(0);
+		const inputData1 = inputBuffer.getChannelData(1);
+		buffer.getChannelData(0).set(inputData0, currPos);
+		buffer.getChannelData(1).set(inputData1, currPos);
+		currPos += inputData0.length;
+	}
+	// To process current audio we need to connect it
+	audioNodes.push(scriptNode);
+
+	playSound(false).then(() => {
+		audioNodes.pop();
+		scriptNode.disconnect();
+		connectNodes();
+		btnProcess.value = "Process";
+		btnProcess.removeAttribute('disabled');
+
+		const btn = document.createElement('span');
+		btn.classList.add('audio-btn');
+		btn.textContent = 'Audio ' + ++audioCount;
+		btn.addEventListener('click', (e) => {
+			// Once are played, AudioNode cannot be longer used, so each time a new AudioNode is created
+			let source = audioCtx.createBufferSource();
+			source.buffer = buffer;
+			source.addEventListener('ended', (e) => {
+				source.disconnect();
+				audioCtx.suspend();
+			});
+			source.connect(audioCtx.destination);
+			source.start(0);
+			audioCtx.resume();
+		});
+		document.querySelector('.audios').appendChild(btn);
 	});
 }
 
