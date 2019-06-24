@@ -1,253 +1,33 @@
-import distortionCurves from './distortionCurves.js';
-import impulses from './impulses/index.js';
-
-let distortionCurveIdx;
-let audioCtx;
-let generatorNode;
-let distortion;
-let biquadFilter;
-let gainNode;
-let envelopeNode;
-let reverbNode;
-let dynacomprNode;
-let analyser;
-let audioNodes;
-let timeoutID;
-let whiteNoiseBuffer;
-let recording;
-
-function createNodes() {
-	// Creating an audio context
-	audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-	audioCtx.suspend();
-	// Non-linear distortion
-	distortion = audioCtx.createWaveShaper();
-	// Represent different kinds of filters, tone control devices, and graphic equalizers
-	biquadFilter = audioCtx.createBiquadFilter();
-	// Gain node node to control sound volume
-	gainNode = audioCtx.createGain();
-	// Gain node node to control sound envelope
-	envelopeNode = audioCtx.createGain();
-	// Represents a node able to provide real-time frequency and time-domain analysis information
-	analyser = audioCtx.createAnalyser();
-	// Performs a Linear Convolution on a given AudioBuffer, often used to achieve a reverb effect
-	reverbNode = audioCtx.createConvolver();
-	// Performs a Linear Convolution on a given AudioBuffer, often used to achieve a reverb effect
-	dynacomprNode = audioCtx.createDynamicsCompressor();
-
-	audioNodes = [
-		undefined,  // generatorNode will go here
-		 distortion
-		,biquadFilter
-		,gainNode
-		,reverbNode
-		,envelopeNode
-		,dynacomprNode
-		,analyser
-	];
-}
-
-// Create an oscilator audio source that will provide a simple tone
-//
-// Oscillators, by design, are only able to be started and stopped exactly once. This is actually
-// better for performance, because it means they won’t be hanging around in memory waiting to be
-// used when they don’t need to be.
-// Luckily, oscillators are cheap and easy to make, so we create one every time the sound is played.
-function addOscillatorOrNoiseNode() {
-	let nodeType = document.getElementById('oscillatorType').value;
-	if(generatorNode) {
-		generatorNode.stop();
-		generatorNode.disconnect();
-	}
-
-	if(nodeType === 'noise') {
-		generatorNode = createWhiteNoise();
-	} else {
-		generatorNode = audioCtx.createOscillator();
-		// Sine wave — other values are 'square', 'sawtooth', 'triangle' and 'custom'
-		generatorNode.type = nodeType;
-		generatorNode.frequency.value = document.getElementById('frequency').value; // value in hertz. Default is 440
-		generatorNode.detune.value = document.getElementById('detune').value; // value in cents. Default is 100
-	}
-
-	document.getElementById('frequency').disabled = nodeType === 'noise';
-	document.getElementById('detune').disabled = nodeType === 'noise';
-
-	audioNodes[0] = generatorNode;
-	connectNodes();
-	generatorNode.start();
-}
-
-// Linking source and destination nodes together
-function connectNodes() {
-	let enabledNodes = audioNodes.filter(node => node && (node.enabled || node.enabled === undefined));
-	let dest = recording ? mediaStream : audioCtx.destination;
-
-	for(let i=0; i<audioNodes.length; i++) {
-		audioNodes[i] && audioNodes[i].disconnect();
-	}
-
-	for(let i=0; i<enabledNodes.length - 1; i++) {
-		enabledNodes[i].connect(enabledNodes[i+1]);
-	}
-	enabledNodes[enabledNodes.length-1].connect(dest);
-}
-
-function setDefaultValues() {
-	// Enable/Disable nodes nodes
-	[].slice.apply(document.querySelectorAll('input[type="checkbox"][id$="enable"]'))
-		.forEach(el => {
-			let node = eval(el.dataset.node);
-			node.enabled = el.checked
-			if(node.enabled && el.dataset.action) {
-				eval(el.dataset.action+'()');
-			}
-		});
-
-	// Set values from input ranges
-	[].slice.apply(document.querySelectorAll('input[type="range"]'))
-		.forEach(el => {
-			let aparam = eval(el.dataset.action);
-			if(aparam instanceof AudioParam) {
-				aparam.setValueAtTime(el.value, audioCtx.currentTime);
-			}
-		});
-
-	// Set values from selects
-	[].slice.apply(document.querySelectorAll('select'))
-		.forEach(el => {
-			let node = eval(el.dataset.node);
-			if(node) {
-				node.enabled = el.checked
-				if(node.enabled && el.dataset.action) {
-					eval(el.dataset.action+'()');
-				}
-			}
-		});
-
-	distortionCurveIdx = document.getElementById('distortion-curve').value;
-
-	// Describes the distortion to apply
-	distortion.curve = distortionCurves[distortionCurveIdx](document.getElementById('distortion').value, document.getElementById('frequency').value);
-	distortion.oversample = document.getElementById('oversample').value;  // Values: 'none', '2x', '4x'
-
-	// Initial volume
-	envelopeNode.gain.value = 1;
-
-	// Size of the Fast Fourier Transform. Must be a power of 2 between 2^5 and 2^15. Defaults to 2048.
-	// (32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, and 32768.)
-	analyser.fftSize = 2048;
-
-	// Controls whether the impulse response from the buffer will be scaled by an equal-power normalization.
-	reverbNode.normalize = true;
-}
-
-function playSound(viz = true) {
-	let dur = getSoundDuration();
-	if(audioCtx.state === 'running') {
-		addOscillatorOrNoiseNode();
-		setEnvelope();
-	} else {
-		audioCtx.resume().then(() => {
-			addOscillatorOrNoiseNode();
-			setEnvelope();
-			if(viz) {
-				visualize();
-			}
-			btnToggleAudio.value = "Stop";
-		});
-	}
-	console.log(`Playing sound for ${dur}s`);
-
-	return new Promise((resolve, reject) => {
-		window.clearTimeout(timeoutID);
-		timeoutID = window.setTimeout(() => {
-			stopSound();
-			resolve();
-		}, dur * 1000);
-	});
-}
-
-function stopSound() {
-	window.clearTimeout(timeoutID);
-	window.cancelAnimationFrame(rafID);
-	audioCtx.suspend().then(() => {
-		if(generatorNode) {
-			generatorNode.stop();
-			generatorNode.disconnect();
-		}
-		generatorNode = undefined;
-		btnToggleAudio.value = "Play";
-		resetVisualization();
-	});
-}
-
-function getSoundDuration() {
-	return getEnvelope().reduce((a, b) => a + b);
-}
-
-function getEnvelope() {
-	return [
-		parseFloat(document.getElementById('attack').value),
-		parseFloat(document.getElementById('decay').value),
-		parseFloat(document.getElementById('sustain').value),
-		parseFloat(document.getElementById('release').value)
-	];
-}
-
-function createReverb() {
-	let selImpulse = document.getElementById('reverb-impulse');
-	switch (selImpulse.value) {
-		case "0":
-			reverbNode.buffer = buildImpulse(getSoundDuration(), 1, false);
-			break;
-		default:
-			// Impulses are base64 encoded sounds stored at impulses/*.js
-			let impulse = impulses[selImpulse.value - 1];
-			// Duration of impulse in seconds
-			const impulseDuration = 3.0186041666666665;
-			let reverbSoundArrayBuffer = base64ToArrayBuffer(impulse),
-				// Get numer of bytes per seconds and cut array buffer to a length in seconds
-				reverbDuration = (reverbSoundArrayBuffer.byteLength/impulseDuration) * getSoundDuration() | 0,
-				sliceOfReverbSoundArrayBuffer = reverbSoundArrayBuffer.slice(0, reverbDuration);
-			audioCtx.decodeAudioData(sliceOfReverbSoundArrayBuffer,
-				function(buffer) {
-					reverbNode.buffer = buffer;
-				},
-				function(e) {
-					console.log('Error when decoding audio reverb data ' + e.err);
-				}
-			)
-			break;
-	}
-}
-
 // https://noisehack.com/generate-noise-web-audio-api/
-function createWhiteNoise() {
-	const bufferSize = audioCtx.sampleRate;
-	const sourceNode = audioCtx.createBufferSource();
-	let output;
-
-	if(!whiteNoiseBuffer) {
-		whiteNoiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-		output = whiteNoiseBuffer.getChannelData(0);
-		for (let i = 0; i < bufferSize; i++) {
-			output[i] = Math.random() * 2 - 1;
-		}
+function createWhiteNoise(audioCtx) {
+	const bufferSize = audioCtx.sampleRate * 2;
+	const whiteNoiseBuffer = audioCtx.createBuffer(2, bufferSize, audioCtx.sampleRate);
+	const output0 = whiteNoiseBuffer.getChannelData(0);
+	const output1 = whiteNoiseBuffer.getChannelData(1);
+	for (let i = 0; i < bufferSize; i++) {
+		output0[i] = Math.random() * 2 - 1;
+		output1[i] = Math.random() * 2 - 1
 	}
+	return whiteNoiseBuffer;
+}
 
-	sourceNode.buffer = whiteNoiseBuffer;
-	sourceNode.loop = true;
-	return sourceNode;
+function base64ToArrayBuffer(base64) {
+    let binaryString = window.atob(base64);
+	let len = binaryString.length;
+	let bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++)        {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
 }
 
 // https://github.com/web-audio-components/simple-reverb/blob/master/index.js
-function buildImpulse(seconds, decay, reverse) {
-	var rate = audioCtx.sampleRate,
-		len = rate * seconds,
-		impulse = audioCtx.createBuffer(2, len, rate),
-		impulseL = impulse.getChannelData(0),
-		impulseR = impulse.getChannelData(1);
+function buildNoiseImpulse(audioCtx, seconds, decay, reverse) {
+	let rate = audioCtx.sampleRate;
+	let len = rate * seconds;
+	let impulse = audioCtx.createBuffer(2, len, rate);
+	let impulseL = impulse.getChannelData(0);
+	let impulseR = impulse.getChannelData(1);
 
 	for (let i = 0; i < len; i++) {
 		let n = reverse ? len - i : i;
@@ -258,310 +38,214 @@ function buildImpulse(seconds, decay, reverse) {
 	return impulse;
 }
 
-function base64ToArrayBuffer(base64) {
-    let binaryString = window.atob(base64),
-		len = binaryString.length,
-		bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++)        {
-        bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes.buffer;
-}
-
-
-// Visualization ///////////////////////////////////////////////////////////////////////////////////
-let canvas = document.getElementById('canvas');
-let canvasCtx = canvas.getContext('2d');
-let bufferLength;
-let dataArray;
-let rafID;
-const WIDTH = canvas.width;
-const HEIGHT = canvas.height;
-const HEIGHT_2 = HEIGHT / 2;
-
-canvasCtx.fillStyle = 'rgb(0, 200, 200)';
-canvasCtx.lineWidth = 2;
-canvasCtx.strokeStyle = 'rgb(255, 255, 255)';
-
-function visualize() {
-	bufferLength = analyser.frequencyBinCount; // half the FFT value
-	dataArray = new Uint8Array(bufferLength); // create an array to store the data
-	draw();
-}
-
-function draw() {
-	rafID = window.requestAnimationFrame(draw);
-
-	analyser.getByteTimeDomainData(dataArray); // get waveform data and put it into the array created above
-
-	canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
-	canvasCtx.beginPath();
-
-	let sliceWidth = WIDTH * 1.0 / bufferLength,
-		x = 0,
-		v,
-		y;
-
-	for(let i = 0; i < bufferLength; i++) {
-		v = dataArray[i] / 128.0;
-		y = v * HEIGHT_2;
-
-		if(i === 0) {
-			canvasCtx.moveTo(x, y);
-		} else {
-			canvasCtx.lineTo(x, y);
-		}
-
-		x += sliceWidth;
+export default class {
+	constructor() {
+		// Creating an audio context
+		this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+		this.audioCtx.suspend();
+		this.notes = [];
+		this.dest = this.audioCtx.destination;
 	}
 
-	canvasCtx.lineTo(WIDTH, HEIGHT_2);
-	canvasCtx.stroke();
+	get duration() {
+		return this.notes.reduce((total, note) => total + note.duration, 0);
+	}
+
+	get state() {
+		return this.audioCtx.state;
+	}
+
+	set destination(node) {
+		this.dest = node;
+	}
+
+	createNote(type, freq) {
+		const note = new Note(this.audioCtx, type, freq)
+		this.notes.push(note);
+		return note;
+	}
+
+	play() {
+		this.notes.forEach((note) => {
+			note.destination = this.dest;
+			note.play();
+		});
+
+		if (this.audioCtx.state !== 'running') {
+			this.audioCtx.resume();
+		}
+
+		return new Promise((resolve, reject) => {
+			window.clearTimeout(this.timeoutID);
+			this.timeoutID = window.setTimeout(() => {
+				this.stop();
+				resolve();
+			}, this.duration * 1000);
+		});
+	}
+
+	stop() {
+		window.clearTimeout(this.timeoutID);
+		this.audioCtx.suspend().then(() => {
+			this.notes.forEach((note) => note.stop());
+		});
+	}
+
+	getContext() {
+		return this.audioCtx;
+	}
 }
 
-function resetVisualization() {
-	canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
-	canvasCtx.beginPath();
-	canvasCtx.moveTo(0, HEIGHT_2);
-	canvasCtx.lineTo(WIDTH, HEIGHT_2);
-	canvasCtx.stroke();
-}
+class Note {
+	constructor(audioCtx, type = 'sine', freq = '440') {
+		this.audioCtx = audioCtx;
+		this.type = type;
+		this.freq = freq;
+		this.freqDetune = 0;
+		this.envelope = [0, 0, 1, 0];
+		this.envelopeSustainLevel = .6;
+		this.dest = null;
 
-resetVisualization();
+		this.createNodes();
+	}
 
+	get duration() {
+		return this.envelope.reduce((a, b) => a + b);
+	}
 
-// UI //////////////////////////////////////////////////////////////////////////////////////////////
-let	audioForm          = document.getElementById('audioForm'),
-	btnToggleAudio     = document.getElementById('toggleAudio'),
-	btnExport          = document.getElementById('export'),
-	btnProcess         = document.getElementById('process'),
-	biquadParamsByType = {
-		lowpass  : {q: true,  gain: false},
-		highpass : {q: true,  gain: false},
-		bandpass : {q: true,  gain: false},
-		lowshelf : {q: false, gain: true},
-		highshelf: {q: false, gain: true},
-		peaking  : {q: true,  gain: true},
-		notch    : {q: true,  gain: false},
-		allpas   : {q: true,  gain: false}
-	};
+	set destination(node) {
+		this.dest = node;
+	}
 
-function initUI() {
-	audioForm.addEventListener('reset', resetForm);
-	btnToggleAudio.addEventListener('click', toggleAudio);
-	btnExport.addEventListener('click', exportAudio);
-	btnProcess.addEventListener('click', processAudio);
-	canvas.addEventListener('click', toggleAudio);
+	createNodes() {
+		this.nodes = {
+			generator: null,
+			// Gain node node to control sound volume
+			gain: this.audioCtx.createGain(),
+			// Gain node node to control sound envelope
+			envelope: this.audioCtx.createGain(),
+			// Non-linear distortion
+			distortion: this.audioCtx.createWaveShaper(),
+			// Represent different kinds of filters, tone control devices, and graphic equalizers
+			biquadFilter: this.audioCtx.createBiquadFilter(),
+			// Performs a Linear Convolution on a given AudioBuffer, often used to achieve a reverb effect
+			reverb: this.audioCtx.createConvolver(),
+			// Compression lowers the volume of the loudest parts and raises the volume of the softest parts
+			dynacompr: this.audioCtx.createDynamicsCompressor(),
+			// Represents a node able to provide real-time frequency and time-domain analysis information
+			analyser: this.audioCtx.createAnalyser()
+		};
 
-	[].slice.apply(document.querySelectorAll('select'))
-		.forEach(el => selectListener(el, eval(el.dataset.action)));
+		this.nodes.distortion.enabled = false;
+		this.nodes.biquadFilter.enabled = false;
+		this.nodes.reverb.enabled = false;
+		this.nodes.dynacompr.enabled = false;
+	}
 
-	[].slice.apply(document.querySelectorAll('input[type="range"]'))
-		.forEach(el => stepListener(el, eval(el.dataset.action)));
+	connectNodes() {
+		for(var prop in this.nodes) {
+			if (this.nodes.hasOwnProperty(prop)) {
+				this.nodes[prop].disconnect();
+			}
+		}
 
-	[].slice.apply(document.querySelectorAll('input[type="checkbox"][id$="enable"]'))
-		.forEach(el => {
-			enableNodeListener(el, eval(el.dataset.node));
-			if(el.dataset.action) {
-				eval(el.dataset.action+'()');
+		const connectedNodes = Object.values(this.nodes)
+			.filter(node => node.enabled || node.enabled === undefined);
+		connectedNodes.forEach((node, i) => {
+			if (connectedNodes[i+1]) {
+				node.connect(connectedNodes[i+1]);
 			}
 		});
 
-	setBiquadType();
-}
-
-function resetForm(e) {
-	// Executed after the form is reset
-	setTimeout(() => {
-		setDefaultValues();
-		audioForm.dispatchEvent(new Event("afterreset"));
-	}, 0);
-}
-
-function stepListener(obj, handler) {
-	let output = document.getElementById(obj.id + '-output');
-	output.value = obj.value;
-
-	obj.addEventListener('input', e => {
-		output.value = e.target.value;
-	});
-
-	obj.addEventListener('change', e => {
-		if(handler instanceof AudioParam) {
-			handler.setValueAtTime(e.target.value, audioCtx.currentTime);
-		} else if(handler) {
-			handler.call(e.target, e);
-		}
-		playSound();
-	});
-
-	audioForm.addEventListener('afterreset', e => {
-		output.value = obj.value;
-	});
-}
-
-function selectListener(obj, handler) {
-	let cb = e => {
-		if(handler instanceof AudioNode) {
-			handler.type = e.target.value;
-		} else if(handler) {
-			handler.call(obj, obj);
+		if (this.dest) {
+			connectedNodes.slice(-1)[0].connect(this.dest);
 		}
 	}
-	obj.addEventListener('change', e => {
-		cb(e);
-		playSound();
-	});
-	audioForm.addEventListener('afterreset', cb);
-}
 
-function enableNodeListener(obj, handler) {
-	obj.addEventListener('change', e => {
-		if(handler instanceof AudioNode) {
-			handler.enabled = e.target.checked;
+	setEnvelope(attack, decay, sustain, release, sustainLevel) {
+		this.envelope = [attack, decay, sustain, release];
+		this.envelopeSustainLevel = sustainLevel;
+	}
+
+	applyEnvelope() {
+		const gain = this.nodes.envelope.gain;
+		const time = this.audioCtx.currentTime;
+		gain.cancelScheduledValues(time);
+		//gain.value = 0  // Deprecated
+		gain.setValueAtTime(0.0001, time); // With a value of 0 exponentialRampToValueAtTime() doesn't work
+		// Attack
+		// Using exponentialRampToValueAtTime() because according MDN it sounds more natural for our ear
+		// gain.linearRampToValueAtTime(1.0, time + this.envelope[0]);
+		gain.exponentialRampToValueAtTime(1.0, time + this.envelope[0]);
+		// Decay
+		// Duration / 3 gives a good approximation of 95% while being accurate on the duration
+		gain.setTargetAtTime(this.envelopeSustainLevel, time + this.envelope[0], this.envelope[1]/3 || .001);
+		// Release
+		gain.setTargetAtTime(0.0001, time + this.envelope[0] + this.envelope[1] + this.envelope[2], this.envelope[3]/3 || .001);
+	}
+
+	addReverb(impulse) {
+		if (impulse === 'noise') {
+			this.nodes.reverb.buffer = buildNoiseImpulse(this.audioCtx, this.duration, 1, false);
 		} else {
-			handler.call(obj, obj.checked);
+			// Duration of impulse in seconds
+			const impulseDuration = 3.0186041666666665;
+			const reverbSoundArrayBuffer = base64ToArrayBuffer(impulse);
+			// Get numer of bytes per seconds and cut array buffer to a length in second
+			const reverbDuration = (reverbSoundArrayBuffer.byteLength/impulseDuration) * this.duration | 0;
+			const sliceOfReverbSoundArrayBuffer = reverbSoundArrayBuffer.slice(0, reverbDuration);
+			this.audioCtx.decodeAudioData(sliceOfReverbSoundArrayBuffer,
+				(buffer) => {
+					this.nodes.reverb.buffer = buffer;
+				},
+				(e) => {
+					throw new Error(`Error when decoding audio reverb data ${e.err}`);
+				}
+			)
 		}
-		connectNodes();
-		playSound();
-	});
-}
+	}
 
-function toggleAudio(e) {
-	if(audioCtx.state === 'running') {
-		stopSound();
-	} else {
-		playSound();
+	createGenerator() {
+		if(this.nodes.generator) {
+			this.nodes.generator.stop();
+			this.nodes.generator.disconnect();
+		}
+
+		if(this.type === 'noise') {
+			if(!this.whiteNoiseBuffer) {
+				this.whiteNoiseBuffer = createWhiteNoise(this.audioCtx);
+			}
+			const sourceNode = this.audioCtx.createBufferSource();
+			sourceNode.buffer = this.whiteNoiseBuffer;
+			sourceNode.loop = true;
+			this.nodes.generator = sourceNode;
+		} else {
+			// Create an oscilator audio source that will provide a simple tone.
+			// Oscillators, by design, are only able to be started and stopped exactly once. This is actually
+			// better for performance, because it means they won’t be hanging around in memory waiting to be
+			// used when they don’t need to be.
+			// Luckily, oscillators are cheap and easy to make, so we create one every time the sound is played.
+			const generator = this.audioCtx.createOscillator();
+			// Sine wave — other values are 'square', 'sawtooth', 'triangle' and 'custom'
+			generator.type = this.type;
+			generator.frequency.value = this.freq; // value in hertz. Default is 440
+			generator.detune.value = this.freqDetune; // value in cents. Default is 100
+			this.nodes.generator = generator;
+		}
+	}
+
+	play() {
+		this.createGenerator();
+		this.connectNodes();
+		this.applyEnvelope();
+		this.nodes.generator.start();
+	}
+
+	stop() {
+		if(this.nodes.generator) {
+			this.nodes.generator.stop();
+			this.nodes.generator.disconnect();
+		}
+		this.nodes.generator = undefined;
 	}
 }
-
-function setOversample(obj) {
-	distortion.oversample = obj.value;
-}
-
-function setDistorsionAmount(e) {
-	let amount = document.getElementById('distortion').value;
-	if(e) {
-		amount = e.target.value;
-	}
-	distortion.curve = distortionCurves[distortionCurveIdx](amount, document.getElementById('frequency').value);
-}
-
-function setDistorsionAmountCurve(obj) {
-	distortionCurveIdx = parseInt(obj.value, 10);
-	setDistorsionAmount();
-}
-
-function setEnvelope(e) {
-	let values = getEnvelope();
-	envelopeNode.gain.cancelScheduledValues(audioCtx.currentTime);
-	//envelopeNode.gain.value = 0  // Deprecated
-	envelopeNode.gain.setValueAtTime(0.0001, audioCtx.currentTime); // With a value of 0 exponentialRampToValueAtTime() doesn't work
-	// Attack
-	// Using exponentialRampToValueAtTime() because according MDN it sounds more natural for our ear
-	// envelopeNode.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + values[0]);
-	envelopeNode.gain.exponentialRampToValueAtTime(1.0, audioCtx.currentTime + values[0]);
-	// Decay
-	// Duration / 3 gives a good approximation of 95% while being accurate on the duration
-	envelopeNode.gain.setTargetAtTime(document.getElementById('sustainlevel').value, audioCtx.currentTime + values[0], values[1]/3 || .001);
-	// Release
-	envelopeNode.gain.setTargetAtTime(0.0001, audioCtx.currentTime + values[0] + values[1] + values[2], values[3]/3 || .001);
-}
-
-function setBiquadType(e) {
-	let selBiquadType = document.getElementById('biquad-type'),
-		params = biquadParamsByType[selBiquadType.value];
-	biquadFilter.type = selBiquadType.value;
-	document.getElementById('biquad-q').disabled = !params.q;
-	document.getElementById('biquad-gain').disabled = !params.gain;
-}
-
-// Recording audio
-let mediaStream;
-let mediaRecorder;
-let chunks = [];
-
-function exportAudio() {
-	if(!mediaStream) {
-		mediaStream = audioCtx.createMediaStreamDestination();
-		mediaRecorder = new MediaRecorder(mediaStream.stream);
-		mediaRecorder.ondataavailable = function(evt) {
-			// push each chunk (blobs) in an array
-			chunks.push(evt.data);
-			console.log(evt);
-		};
-		mediaRecorder.onstop = function(evt) {
-			// Make blob out of our blobs, and open it.
-			const blob = new Blob(chunks, { 'type' : 'audio/ogg; codecs=opus' });
-			const src = URL.createObjectURL(blob);
-			window.open(src, 'sasynth-export');
-			URL.revokeObjectURL(src);
-			chunks.length = 0;
-		};
-	}
-	recording = true;
-	mediaRecorder.start();
-	playSound(false).then(() => {
-		recording = false;
-		mediaRecorder.requestData();
-		mediaRecorder.stop();
-	});
-}
-
-// Process audio
-let audioCount = 0;
-
-function processAudio() {
-	const buffer = audioCtx.createBuffer(2, getSoundDuration() * audioCtx.sampleRate, audioCtx.sampleRate);
-	let currPos = 0;
-	btnProcess.value = "Processing...";
-	btnProcess.setAttribute('disabled', true);
-
-	const scriptNode = audioCtx.createScriptProcessor(2048, 2, 2);
-	scriptNode.onaudioprocess = function(audioProcessingEvent) {
-		// Stores input buffer data into an AudioBuffer
-		const inputBuffer = audioProcessingEvent.inputBuffer;
-		const inputData0 = inputBuffer.getChannelData(0);
-		const inputData1 = inputBuffer.getChannelData(1);
-		buffer.getChannelData(0).set(inputData0, currPos);
-		buffer.getChannelData(1).set(inputData1, currPos);
-		currPos += inputData0.length;
-	}
-	// To process current audio we need to connect it
-	audioNodes.push(scriptNode);
-
-	playSound(false).then(() => {
-		audioNodes.pop();
-		scriptNode.disconnect();
-		connectNodes();
-		btnProcess.value = "Process";
-		btnProcess.removeAttribute('disabled');
-
-		const btn = document.createElement('span');
-		btn.classList.add('audio-btn');
-		btn.textContent = 'Audio ' + ++audioCount;
-		btn.addEventListener('click', (e) => {
-			// Once are played, AudioNode cannot be longer used, so each time a new AudioNode is created
-			let source = audioCtx.createBufferSource();
-			source.buffer = buffer;
-			source.addEventListener('ended', (e) => {
-				source.disconnect();
-				audioCtx.suspend();
-			});
-			source.connect(audioCtx.destination);
-			source.start(0);
-			audioCtx.resume();
-		});
-		document.querySelector('.audios').appendChild(btn);
-	});
-}
-
-
-// Release the Kraken with an electric guitar ///////////////////////////////////////////////////////
-function init() {
-	createNodes();
-	initUI();
-	setDefaultValues();
-}
-
-init();
