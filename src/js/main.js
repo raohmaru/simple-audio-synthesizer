@@ -121,6 +121,7 @@ function initViz() {
 function visualize() {
 	bufferLength = note.nodes.analyser.frequencyBinCount; // half the FFT value
 	dataArray = new Uint8Array(bufferLength); // create an array to store the data
+	window.cancelAnimationFrame(rafID);
 	draw();
 }
 
