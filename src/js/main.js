@@ -295,6 +295,18 @@ let mediaStream;
 let mediaRecorder;
 const chunks = [];
 
+var saveBlob = function (blob, fileName) {
+	const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    document.body.appendChild(a);
+    a.style = "display: none";
+	a.href = url;
+	a.download = fileName;
+	a.click();
+	window.URL.revokeObjectURL(url);
+	document.body.removeChild(a);
+};
+
 function exportAudio() {
 	btnExport.value = "Exporting...";
 	btnExport.setAttribute('disabled', true);
@@ -308,17 +320,12 @@ function exportAudio() {
 		};
 		mediaRecorder.onstop = function(evt) {
 			// Make blob out of our blobs, and open it.
-			const blob = new Blob(chunks, { 'type' : 'audio/ogg; codecs=opus' });
-			const src = URL.createObjectURL(blob);
-			window.open(src, 'sasynth-export');
-			URL.revokeObjectURL(src);
+			// https://wiki.whatwg.org/wiki/Video_type_parameters#Browser_Support
+			// const blob = new Blob(chunks, { 'type': 'audio/ogg; codecs=opus' });
+			const blob = new Blob(chunks, { 'type': 'audio/webm; codecs=vorbis' });
+			// const blob = new Blob(chunks, { 'type': 'audio/wave; codec=1' });
+			saveBlob(blob, 'audio.webm');
 			chunks.length = 0;
-			// When the window loses the focus, AudioContext does not suspend right on (at least in Firefox)
-			const onFocus = (e) => {
-				sas.stop();
-				window.removeEventListener('focus', onFocus);
-			}
-			window.addEventListener('focus', onFocus);
 		};
 	}
 	mediaRecorder.start();
@@ -333,6 +340,7 @@ function exportAudio() {
 }
 
 // Process audio ////////////////////////////////////////////////////////////////////////////////////////
+// https://googlechromelabs.github.io/web-audio-samples/audio-worklet/
 let audioCount = 0;
 
 function processAudio() {
