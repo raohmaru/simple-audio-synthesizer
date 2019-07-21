@@ -321,9 +321,9 @@ function exportAudio() {
 		mediaRecorder.onstop = function(evt) {
 			// Make blob out of our blobs, and open it.
 			// https://wiki.whatwg.org/wiki/Video_type_parameters#Browser_Support
-			// const blob = new Blob(chunks, { 'type': 'audio/ogg; codecs=opus' });
-			const blob = new Blob(chunks, { 'type': 'audio/webm; codecs=vorbis' });
-			// const blob = new Blob(chunks, { 'type': 'audio/wave; codec=1' });
+			// const blob = new Blob(chunks, { 'type': 'audio/ogg; codecs=opus' }); // Only works in FF
+			// const blob = new Blob(chunks, { 'type': 'audio/wave; codec=1' }); // Generates a damaged file
+			const blob = new Blob(chunks, { 'type': 'audio/webm; codecs=vorbis' }); // Seems to work in all browsers
 			saveBlob(blob, 'audio.webm');
 			chunks.length = 0;
 		};
@@ -340,40 +340,93 @@ function exportAudio() {
 }
 
 // Process audio ////////////////////////////////////////////////////////////////////////////////////////
-// https://googlechromelabs.github.io/web-audio-samples/audio-worklet/
-let audioCount = 0;
+const sharedBuffers = [];
+let scriptNode;
+let writeIdx;
 
 function processAudio() {
-	const buffer = audioCtx.createBuffer(2, sas.duration * audioCtx.sampleRate, audioCtx.sampleRate);
-	let currPos = 0;
 	btnProcess.value = "Processing...";
 	btnProcess.setAttribute('disabled', true);
 
-	const scriptNode = audioCtx.createScriptProcessor(2048, 2, 2);
-	scriptNode.onaudioprocess = function(audioProcessingEvent) {
-		// Stores input buffer data into an AudioBuffer
-		const inputBuffer = audioProcessingEvent.inputBuffer;
-		for (let i=0; i < inputBuffer.numberOfChannels; i++) {
-			buffer.getChannelData(i).set(inputBuffer.getChannelData(i), currPos);
+	// Newest browsers should support Audio Worklet
+	if (audioCtx.audioWorklet && typeof audioCtx.audioWorklet.addModule === 'function') {
+		if (!scriptNode) {
+			audioCtx.audioWorklet.addModule('js/script-processor.js').then(() => {
+				scriptNode = new AudioWorkletNode(audioCtx, 'script-processor');
+				setupAudioWorklet();
+			});
+		} else {
+			setupAudioWorklet();
 		}
-		currPos += inputBuffer.getChannelData(0).length;
+	// ScriptProcessor will be deprecated
+	} else {
+		const buffer = audioCtx.createBuffer(2, sas.duration * audioCtx.sampleRate, audioCtx.sampleRate);
+		sharedBuffers.push(buffer);
+		writeIdx = [0, 0];
+		if (!scriptNode) {
+			scriptNode = audioCtx.createScriptProcessor(2048, 2, 2);
+		}
+		scriptNode.onaudioprocess = onAudioScriptProcess;
+		startAudioProcessing();
 	}
+}
+
+function onAudioScriptProcess(audioProcessingEvent) {
+	// Stores input buffer data into an AudioBuffer
+	const buffer = sharedBuffers[sharedBuffers.length-1];
+	const inputBuffer = audioProcessingEvent.inputBuffer;
+	let inputChannelData;
+
+	for (let i=0; i < inputBuffer.numberOfChannels; i++) {
+		inputChannelData = inputBuffer.getChannelData(i);
+		if (inputChannelData.length + writeIdx[i] < buffer.getChannelData(i).length) {
+			buffer.getChannelData(i).set(inputChannelData, writeIdx[i]);
+			writeIdx[i] += inputChannelData.length;
+		} else {
+			let splitIndex = buffer.length - writeIdx[i];
+			let firstHalf = inputChannelData.subarray(0, splitIndex);
+			buffer.getChannelData(i).set(firstHalf, writeIdx[i]);
+			writeIdx[i] = buffer.length;
+		}
+	}
+}
+
+function setupAudioWorklet() {
+	const sab = new SharedArrayBuffer(sas.duration * audioCtx.sampleRate * Float32Array.BYTES_PER_ELEMENT);
+	sharedBuffers.push(new Float32Array(sab));
+	// Send SharedArrayBuffer to processor
+	scriptNode.port.postMessage({
+		message: 'setup',
+		buffer: sharedBuffers[sharedBuffers.length-1]
+	});
+	startAudioProcessing();
+}
+
+function startAudioProcessing() {
 	// To process current audio we need to connect it
 	sas.destination = scriptNode;
+	scriptNode.connect(audioCtx.destination);
 
 	playSound(false).then(() => {
-		sas.destination = audioCtx.destination;
 		scriptNode.disconnect();
+		sas.destination = audioCtx.destination;
 		scriptNode.onaudioprocess = undefined;
 		btnProcess.value = "Process";
 		btnProcess.removeAttribute('disabled');
 
 		const btn = document.createElement('span');
 		btn.classList.add('audio-btn');
-		btn.textContent = 'Audio ' + ++audioCount;
+		btn.textContent = 'Audio ' + sharedBuffers.length;
+		btn.dataset.idx = sharedBuffers.length - 1;
 		btn.addEventListener('click', (e) => {
+			let buffer = sharedBuffers[e.target.dataset.idx];
+			if(buffer instanceof Float32Array) {
+				const audioBuffer = audioCtx.createBuffer(1, buffer.length, audioCtx.sampleRate);
+				audioBuffer.getChannelData(0).set(buffer);
+				buffer = audioBuffer;
+			}
 			// Once are played, AudioNode cannot be longer used, so each time a new AudioNode is created
-			let source = audioCtx.createBufferSource();
+			const source = audioCtx.createBufferSource();
 			source.buffer = buffer;
 			source.addEventListener('ended', (e) => {
 				source.disconnect();
@@ -386,7 +439,6 @@ function processAudio() {
 		document.querySelector('.audios').appendChild(btn);
 	});
 }
-
 
 // Release the Kraken with an electric guitar ///////////////////////////////////////////////////////
 function init() {
