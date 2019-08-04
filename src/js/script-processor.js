@@ -17,7 +17,7 @@ class ScriptProcessor extends AudioWorkletProcessor {
 		// By default, the node has single input and output.
 		const input = inputs[0];
 		const output = outputs[0];
-		const inputChannel0 = input[0];
+		const inputChannel0 = input[0];  // For now, we only handle one channel
 
 		if (inputChannel0.length + this.writeIdx < this.buffer.length) {
 			this.buffer.set(inputChannel0, this.writeIdx);
@@ -29,6 +29,7 @@ class ScriptProcessor extends AudioWorkletProcessor {
 			this.writeIdx = this.buffer.length;
 		}
 
+		// bypass input to output without modification
 		for (let channel = 0; channel < output.length; ++channel) {
 			output[channel].set(input[channel]);
 		}

@@ -29,8 +29,18 @@ select {
 	font-size: 0.7rem;
 }
 
-input[type="button"] {
+textarea {
+    width: 100%;
+    margin: 0;
+    border: none;
+    background: transparent;
+	font-family: Consolas, Tahoma, Arial, Helvetica, sans-serif;
+	font-size: 0.7em;
+}
+
+.btn {
 	min-width: 60px;
+	cursor: pointer;
 }
 
 input[type="range"] {
@@ -47,7 +57,7 @@ footer {
 }
 
 fieldset {
-	margin-top: 0.3em;
+	margin: 0.3em 0 0;
 	padding: 0.7em 0.7em 0.7em 0.2em;
 	background-color: #f8f8f8;
 	border: solid 1px #8c8c8c;
@@ -66,7 +76,7 @@ ul {
 }
 
 .audio-controls {
-	max-width: 626px;
+	max-width: 622px;
 	margin: 1em auto 0;
 }
 
@@ -113,6 +123,15 @@ ul {
 		content: attr(data-unit);
 	}
 
+	.field--stack {
+		display: flex;
+		flex-direction: column;
+	}
+
+		.field--stack .btn:nth-child(n+2) {
+			margin-top: 0.7em;
+		}
+
 .footer__link {
 	display: inline;
 }
@@ -121,10 +140,6 @@ ul {
 	}
 
 @media only screen and (min-width: 480px) {
-	.field {
-		margin-top: 0.8em;
-	}
-
 	.field--long {
 		display: flex;
 	}
@@ -143,6 +158,14 @@ ul {
 	.label ~ .label {
 		text-align: right;
 	}
+
+	.field--stack {
+		display: block;
+	}
+
+		.field--stack .btn:nth-child(n+2) {
+			margin-top: 0;
+		}
 }
 
 .audios:not(:empty) {
@@ -153,16 +176,27 @@ ul {
 	padding: 0.2em 0.8em;
 	font-size: 0.8em;
 	color: #FFF;
-	background-color: rgb(0, 200, 200);
+	background-color: #d565df;
 	border-radius: 10px;
 	cursor: pointer;
 }
 
 	.audio-btn:hover,
 	.audio-btn:focus {
-		background-color: rgb(0, 150, 150);
+		background-color: #ac26b8;
 	}
 
 	.audio-btn + .audio-btn {
 		margin-left: 10px;
 	}
+
+.codepanel {
+	margin-top: 0.3em;
+	padding: 0.3em 0.6em;
+	background-color: #f7f3cd;
+	border: 1px dashed #000;
+}
+
+.hide {
+	display: none;
+}

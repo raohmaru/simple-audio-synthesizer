@@ -4,7 +4,7 @@ An audio synthesizer build with [Web Audio API](https://developer.mozilla.org/en
 &#x1F3B5; &nbsp; [Try it now](https://raohmaru.github.io/simple-audio-synthesizer/src/) &nbsp; &#x1F3B5;
 
 It uses the [OscillatorNode](https://developer.mozilla.org/en-US/docs/Web/API/OscillatorNode) or
-white noise to generate a sound, which can be manipulated with the different [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode)
+white noise to generate a sound, which can be manipulated with the different [AudioNodes](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode)
 the API exposes.
 
 This tool was built by means of learning how to generate sounds in the modern browsers. Do not expect
@@ -15,7 +15,7 @@ a polished code or excellent performance.
 - Open src/index.html
 
 ## Browser Support
-Chrome, Firefox, Edge, Safari. Essentially any browser that understands ECMAScript 2015+ and the Web Audio API.
+Chrome, Firefox, Edge, Safari. Essentially any browser that understands ECMAScript 2015+ and the [Web Audio API](https://caniuse.com/#search=Web%20Audio).
 
 ## A Note on the Impulse Responses
 The impulse response sounds used for the [ConvolverNode](https://developer.mozilla.org/en-US/docs/Web/API/ConvolverNode)

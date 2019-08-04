@@ -11,23 +11,29 @@
 <body>
 
 <header>
-	<canvas width="600" height="300" id="canvas" title="Click to play the sound"></canvas>
+	<canvas width="600" height="150" id="canvas" title="Click to play the sound"></canvas>
 </header>
 
 <section class="audio-controls">
 	<form action="" id="audioForm">
 		<!-- Buttons -->
 		<fieldset>
-			<div class="field field--centered">
-				<input type="button" value="Play" id="toggleAudio" />
-				<input type="reset" value="Reset" id="resetForm" />
-				<input type="button" value="Export" id="export" title="Export sound as an audio file" />
-				<input type="button" value="Process" id="process" title="Process audio and store it in memory" />
+			<div class="field field--centered field--stack">
+				<input type="button" value="Play" id="toggleAudio" class="btn" />
+				<input type="reset" value="Reset" id="resetForm" class="btn" />
+				<input type="button" value="Export" id="export" title="Export sound as an audio file" class="btn" />
+				<input type="button" value="Process" id="process" title="Process audio and store it in memory" class="btn" />
+				<input type="button" value="Code" data-toggle=".codepanel" title="Show note parameters" class="btn" />
 			</div>
 		</fieldset>
 
 		<!-- Processed audio streams -->
 		<div class="audios"></div>
+
+		<!-- Export code -->
+		<div class="codepanel hide">
+			<textarea id="codefield" rows="1">{}</textarea>
+		</div>
 
 		<!-- Type of wave -->
 		<fieldset>
@@ -54,7 +60,7 @@
 				<input type="range" min="0" max="1000" value="0" step="1" id="detune" data-action="setWave">
 			</div>
 
-			<div class="field field--long field--long-xs">
+			<div class="field field--long">
 				<label class="label" for="volume" title="The amount of gain to be applied to the input data before its propagation to the output">Volume:</label>
 				<output for="volume" id="volume-output" data-unit="%">0.2</output>
 				<input type="range" min="0.01" max="1" value="0.2" step="0.01" id="volume" data-action="gain.gain">
@@ -93,14 +99,14 @@
 		</fieldset>
 
 		<!-- Distortion -->
-		<fieldset>
+		<fieldset id="distortion-set">
 			<div class="field field--long">
 				<span>
-					<input type="checkbox" id="distortion-enable" title="Enable" data-node="distortion" />
+					<input type="checkbox" id="distortion-enable" title="Enable" data-node="distortion" data-action="setDistorsion" />
 				</span>
 				<label class="label" for="distortion-enable" title="Applies a non-linear distorter. It uses a curve to apply a wave shaping distortion to the signal."><strong>Distortion</strong>:</label>
 				<select id="distortion-curve" data-action="setDistorsion" title="A Float32Array of numbers describing the distortion to apply">
-					<option value="0">Default</option>
+					<option value="0">Simple</option>
 					<option value="1">Karplus–Strong</option>
 					<option value="2">Vintage</option>
 					<option value="3">Ultra Metal</option>
@@ -120,7 +126,7 @@
 		</fieldset>
 
 		<!-- Biquad filter -->
-		<fieldset>
+		<fieldset id="biquadFilter-set">
 			<div class="field">
 				<span>
 					<input type="checkbox" id="biquad-enable" title="Enable" data-node="biquadFilter" />
@@ -141,7 +147,7 @@
 			<div class="field field--long">
 				<label class="label" for="biquad-detune" title="The detuning of the frequency in cents (an octave is divided into 12 semitones of 100 cents each)">Detune:</label>
 				<output for="biquad-detune" id="biquad-detune-output" data-unit="c" title="cents">1</output>
-				<input type="range" min="0" max="1000" value="100" step="1" id="biquad-detune" data-action="biquadFilter.detune">
+				<input type="range" min="0" max="1000" value="0" step="1" id="biquad-detune" data-action="biquadFilter.detune">
 			</div>
 
 			<div class="field field--long">
@@ -159,12 +165,12 @@
 			<div class="field field--long">
 				<label class="label" for="biquad-q" title="Represents the Q factor (it describes how underdamped an oscillator is, and characterizes a resonator's bandwidth relative to its centre frequency)">Q:</label>
 				<output for="biquad-q" id="biquad-q-output">1</output>
-				<input type="range" min="0.0001" max="1000" value="1" step="0.0001" id="biquad-q" data-action="biquadFilter.Q">
+				<input type="range" min="0.0001" max="100" value="1" step="0.0001" id="biquad-q" data-action="biquadFilter.Q">
 			</div>
 		</fieldset>
 
 		<!-- Reverberation -->
-		<fieldset>
+		<fieldset id="reverb-set">
 			<div class="field">
 				<span>
 					<input type="checkbox" id="reverb-enable" title="Enable" data-node="reverb" data-action="createReverb" />
@@ -183,10 +189,10 @@
 		</fieldset>
 
 		<!-- Dynamics Compressor -->
-		<fieldset>
+		<fieldset id="dynaCompr-set">
 			<div class="field">
 				<span>
-					<input type="checkbox" id="dynacompr-enable" title="Enable" data-node="dynacompr" />
+					<input type="checkbox" id="dynacompr-enable" title="Enable" data-node="dynaCompr" />
 				</span>
 				<label class="label label--long" for="dynacompr-enable" title="Provides a compression effect, which lowers the volume of the loudest parts of the signal in order to help prevent clipping and distortion that can occur when multiple sounds are played and multiplexed together at once"><strong>Dynamics Compressor</strong>:</label>
 			</div>
@@ -194,31 +200,31 @@
 			<div class="field field--long">
 				<label class="label" for="dynacompr-threshold" title="The decibel value above which the compression will start taking effect">Threshold:</label>
 				<output for="dynacompr-threshold" id="dynacompr-threshold-output" data-unit="dB" title="decibels">-24</output>
-				<input type="range" min="-100" max="0" value="-24" step="0.1" id="dynacompr-threshold" data-action="dynacompr.threshold">
+				<input type="range" min="-100" max="0" value="-24" step="0.1" id="dynacompr-threshold" data-action="dynaCompr.threshold">
 			</div>
 
 			<div class="field field--long">
 				<label class="label" for="dynacompr-knee" title="A decibel value representing the range above the threshold where the curve smoothly transitions to the compressed portion">Knee:</label>
 				<output for="dynacompr-knee" id="dynacompr-knee-output" data-unit="dB">30</output>
-				<input type="range" min="0" max="40" value="30" step="0.1" id="dynacompr-knee" data-action="dynacompr.knee">
+				<input type="range" min="0" max="40" value="30" step="0.1" id="dynacompr-knee" data-action="dynaCompr.knee">
 			</div>
 
 			<div class="field field--long">
 				<label class="label" for="dynacompr-ratio" title="Represents the amount of change, in dB, needed in the input for a 1 dB change in the output">Ratio:</label>
 				<output for="dynacompr-ratio" id="dynacompr-ratio-output" data-unit="dB">12</output>
-				<input type="range" min="1" max="20" value="12" step="0.1" id="dynacompr-ratio" data-action="dynacompr.ratio">
+				<input type="range" min="1" max="20" value="12" step="0.1" id="dynacompr-ratio" data-action="dynaCompr.ratio">
 			</div>
 
 			<div class="field field--long">
 				<label class="label" for="dynacompr-attack" title="The amount of time, in seconds, required to reduce the gain by 10 dB. It defines how quickly the signal is adapted when its volume is increased.">Attack:</label>
 				<output for="dynacompr-attack" id="dynacompr-attack-output">0.003</output>
-				<input type="range" min="0" max="1" value="0.003" step="0.0001" id="dynacompr-attack" data-action="dynacompr.attack">
+				<input type="range" min="0" max="1" value="0.003" step="0.0001" id="dynacompr-attack" data-action="dynaCompr.attack">
 			</div>
 
 			<div class="field field--long">
 				<label class="label" for="dynacompr-release" title="The amount of time, in seconds, required to increase the gain by 10 dB. It defines how quick the signal is adapted when its volume is reduced.">Release:</label>
 				<output for="dynacompr-release" id="dynacompr-release-output">0.25</output>
-				<input type="range" min="0" max="1" value="0.25" step="0.0001" id="dynacompr-release" data-action="dynacompr.release">
+				<input type="range" min="0" max="1" value="0.25" step="0.0001" id="dynacompr-release" data-action="dynaCompr.release">
 			</div>
 		</fieldset>
 	</form>
