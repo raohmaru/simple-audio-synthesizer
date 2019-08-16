@@ -9,20 +9,20 @@ const defaults = {
 	envelopeSustainLevel: .6
 };
 
-export const NODE_TYPES = {
+export const NODE_TYPES = Object.assign(Object.create(null), {
 	DISTORTION:    'distortion',
 	REVERB:        'reverb',
 	BIQUAD_FILTER: 'biquadFilter',
 	DYNA_COMPR:    'dynaCompr'
-};
+});
 
-export const WAVE_SHAPE = {
+export const WAVE_SHAPE = Object.assign(Object.create(null), {
 	SINE:        'sine',
 	SQUARE:      'square',
 	SAWTOOTH:    'sawtooth',
 	TRIANGLE:    'triangle',
 	WHITE_NOISE: 'white_noise'
-};
+});
 
 export default class {
 	constructor(sas, params = defaults) {
@@ -40,8 +40,11 @@ export default class {
 		this.setEnvelope(...params.envelope, params.envelopeSustainLevel);
 		this._dest = sas.destination;
 
-		if (params.distortion) {
-			this.addNodeByType(NODE_TYPES.DISTORTION, params.distortion);
+		for(let prop in NODE_TYPES) {
+			const key = NODE_TYPES[prop];
+			if (params[key]) {
+				this.addNodeByType(key, params[key]);
+			}
 		}
 	}
 
@@ -96,7 +99,7 @@ export default class {
 	}
 
 	_disconnect() {
-		for(var prop in this._nodes) {
+		for(let prop in this._nodes) {
 			if (Object.prototype.hasOwnProperty.call(this._nodes, prop)) {
 				this._nodes[prop] && this._nodes[prop].disconnect();
 			}
@@ -178,14 +181,23 @@ export default class {
 
 			case NODE_TYPES.REVERB:
 				this._nodes.reverb = node = this._audioCtx.createConvolver();
+				if (params) {
+					this.addReverb(params.impulse, params.impulseDuration);
+				}
 				break;
 
 			case NODE_TYPES.BIQUAD_FILTER:
 				this._nodes.biquadFilter = node = this._audioCtx.createBiquadFilter();
+				if (params) {
+					this.setBiquadFilter(params.type, params.detune, params.frequency, params.gain, params.Q);
+				}
 				break;
 
 			case NODE_TYPES.DYNA_COMPR:
 				this._nodes.dynaCompr = node = this._audioCtx.createDynamicsCompressor();
+				if (params) {
+					this.setDynaCompr(params.threshold, params.knee, params.ratio, params.attack, params.release);
+				}
 				break;
 		}
 
@@ -267,8 +279,6 @@ export default class {
 		this._createGenerator();
 		this._connectNodes();
 		this._applyEnvelope();
-		// this._nodes.envelope.gain.value = 0;
-		// this._nodes.envelope.gain.setValueAtTime(0, this._audioCtx.currentTime);
 		this.nodes.generator.start();
 
 		return new Promise((resolve) => {
@@ -282,9 +292,9 @@ export default class {
 
 	stop() {
 		if(this._nodes.generator) {
-			// this._nodes.generator.stop();
-			// this._nodes.generator.disconnect();
-			// this._nodes.generator = undefined;
+			this._nodes.generator.stop();
+			this._nodes.generator.disconnect();
+			this._nodes.generator = undefined;
 		}
 		window.clearTimeout(this._timeoutID);
 	}

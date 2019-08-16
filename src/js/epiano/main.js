@@ -64,7 +64,6 @@ function playNote(i) {
 	} else {
 		note = notes[i];
 	}
-	console.log(`Playing sound for ${note.duration}s`);
 	note.play().then(() => {
 		note.destroy();
 	});
