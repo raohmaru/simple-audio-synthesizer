@@ -1,7 +1,7 @@
 # Simple Synthesizer with Web Audio API
 An audio synthesizer build with [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API).
 
-&#x1F3B5; &nbsp; [Try it now](https://raohmaru.github.io/simple-audio-synthesizer/src/) &nbsp; &#x1F3B5;
+&#x1F3B5; &nbsp; [Editor](https://raohmaru.github.io/simple-audio-synthesizer/src/) &nbsp; &#x1F3B5; &nbsp; [Virtua Piano](https://raohmaru.github.io/simple-audio-synthesizer/src/electric-piano.html) &nbsp; &#x1F3B5;
 
 It uses the [OscillatorNode](https://developer.mozilla.org/en-US/docs/Web/API/OscillatorNode) or
 white noise to generate a sound, which can be manipulated with the different [AudioNodes](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode)
@@ -13,6 +13,25 @@ a polished code or excellent performance.
 ## Installation
 - Clone the repository
 - Open src/index.html
+
+## Usage
+```
+import SAS from './lib/sasynth.js';
+import Note from './lib/note.js';
+
+const noteParams = {
+    type: "sine",
+    freq: 220
+};
+
+const sas = new SAS();
+sas.createNote(noteParams);
+sas.play();
+
+// or
+const note = new Note(sas, noteParams);
+note.play();
+```
 
 ## Browser Support
 Chrome, Firefox, Edge, Safari. Essentially any browser that understands ECMAScript 2015+ and the [Web Audio API](https://caniuse.com/#search=Web%20Audio).

@@ -15,7 +15,7 @@ canvas {
 	display: block;
 	max-width: 100%;
 	margin: 0 auto;
-	border: solid 10px #fff;
+	border: solid 1px #333;
 	cursor: pointer;
 }
 
@@ -76,7 +76,7 @@ ul {
 }
 
 .audio-controls {
-	max-width: 622px;
+	max-width: 602px;
 	margin: 1em auto 0;
 }
 
@@ -200,3 +200,43 @@ ul {
 .hide {
 	display: none;
 }
+
+.keyboard {
+	display: flex;
+	justify-content: center;
+	margin: 0 auto 1em;
+	width: 602px;
+}
+.key-btn {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 60px;
+	height: 10em;
+	overflow: hidden;
+	text-decoration: none;
+	font-weight: bold;
+	background-color: #fff;
+	border: 1px solid #333;
+	border-bottom-width: 10px;
+	transition: all 0.05s ease;
+}
+	.key-btn--pressed,
+	.key-btn:active {
+		padding-top: 8px;
+		border-bottom-width: 2px;
+	}
+
+	.key-btn:active::before,
+	.key-btn--pressed::before {
+		content: "";
+		position: absolute;
+		left: -5px;
+		top: 0;
+		bottom: 0;
+		height: 100%;
+		width: 15px;
+		box-shadow: inset 13px 0px 9px -10px rgba(0,0,0,0.5);
+		transform: skewX(3deg);
+	}

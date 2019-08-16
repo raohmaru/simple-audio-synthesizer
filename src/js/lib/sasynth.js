@@ -1,20 +1,22 @@
 import Note from './note.js';
 
 const defaults = {
-	analyse: false
+	analyse: false,
+	masterVolume: 1
 };
 
 export default class {
 	constructor(options = defaults) {
+		options = Object.assign({}, defaults, options);
 		// Creating an audio context
 		this._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 		this._audioCtx.suspend();
 		this._notes = [];
-		this._dest = this._audioCtx.destination;
-
+		this.masterVolume = options.masterVolume;
 		if (options.analyse) {
-			this.analyse = true;
+			this._addAnalyser();
 		}
+		this.destination = this._audioCtx.destination;
 	}
 
 	get duration() {
@@ -25,24 +27,24 @@ export default class {
 		return this._audioCtx.state;
 	}
 
-	set destination(node) {
-		this._dest = node;
+	get destination() {
+		return this._dest;
 	}
 
-	set analyse(bool) {
-		if (bool) {
-			if (!this._analyser) {
-				// Represents a node able to provide real-time frequency and time-domain analysis information
-				this._analyser = this._audioCtx.createAnalyser();
-			}
-		} else {
-			this._analyser.disconnect();
-			this._analyser = undefined;
+	set destination(node) {
+		if (this._analyserNode) {
+			this._analyserNode.disconnect();
+			this._analyserNode.connect(node);
+			node = this._analyserNode;
 		}
+
+		this._volumeNode.disconnect();
+		this._volumeNode.connect(node);
+		this._dest = this._volumeNode;
 	}
 
 	get analyser() {
-		return this._analyser;
+		return this._analyserNode;
 	}
 
 	get context() {
@@ -53,40 +55,52 @@ export default class {
 		return this._notes.slice();
 	}
 
+	set masterVolume(value) {
+		if (!this._volumeNode) {
+			// Gain node node to control sound volume
+			this._volumeNode = this._audioCtx.createGain();
+		}
+		this._volumeNode.gain.setValueAtTime(parseFloat(value), this._audioCtx.currentTime);
+	}
+
+	_addAnalyser() {
+		if (!this._analyserNode) {
+			// Represents a node able to provide real-time frequency and time-domain analysis information
+			this._analyserNode = this._audioCtx.createAnalyser();
+		}
+	}
+
 	createNote(params) {
-		const note = new Note(this._audioCtx, params);
+		const note = new Note(this, params);
 		this._notes.push(note);
 		return note;
 	}
 
 	play() {
-		let dest = this._dest;
-		if (this._analyser) {
-			this._analyser.connect(this._dest);
-			dest = this._analyser;
-		}
-
 		this._notes.forEach((note) => {
-			note.destination = dest;
+			note.destination = this._dest;
 			note.play();
 		});
 
-		if (this._audioCtx.state !== 'running') {
-			this._audioCtx.resume();
-		}
+		this.start();
 
 		return new Promise((resolve, reject) => {
 			window.clearTimeout(this._timeoutID);
 			this._timeoutID = window.setTimeout(() => {
 				resolve();
+				this.stop();
 			}, this.duration * 1000);
 		});
 	}
 
 	stop() {
 		window.clearTimeout(this._timeoutID);
-		this._audioCtx.suspend().then(() => {
-			this._notes.forEach((note) => note.stop());
-		});
+		this._audioCtx.suspend();
+	}
+
+	start() {
+		if (this._audioCtx.state !== 'running') {
+			this._audioCtx.resume();
+		}
 	}
 }

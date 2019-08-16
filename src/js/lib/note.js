@@ -4,6 +4,7 @@ const defaults = {
 	type: 'sine',
 	freq: 440,
 	freqDetune: 0,
+	volume: 1,
 	envelope: [0, 0, 1, 0],
 	envelopeSustainLevel: .6
 };
@@ -15,17 +16,33 @@ export const NODE_TYPES = {
 	DYNA_COMPR:    'dynaCompr'
 };
 
+export const WAVE_SHAPE = {
+	SINE:        'sine',
+	SQUARE:      'square',
+	SAWTOOTH:    'sawtooth',
+	TRIANGLE:    'triangle',
+	WHITE_NOISE: 'white_noise'
+};
+
 export default class {
-	constructor(audioCtx, params = defaults) {
-		this._audioCtx = audioCtx;
+	constructor(sas, params = defaults) {
+		params = Object.assign({}, defaults, params);
+
+		this._sas = sas;
+		this._audioCtx = sas.context;
+		this._createNodes();
+
 		// Params
 		this._type = params.type;
 		this.freq = params.freq;
 		this.freqDetune = params.freqDetune;
+		this.volume = params.volume;
 		this.setEnvelope(...params.envelope, params.envelopeSustainLevel);
-		this._dest = null;
+		this._dest = sas.destination;
 
-		this._createNodes();
+		if (params.distortion) {
+			this.addNodeByType(NODE_TYPES.DISTORTION, params.distortion);
+		}
 	}
 
 	get duration() {
@@ -52,6 +69,10 @@ export default class {
 		this._freqDetune = parseInt(value, 10);
 	}
 
+	set volume(value) {
+		this._nodes.gain.gain.setValueAtTime(parseFloat(value), this._audioCtx.currentTime);
+	}
+
 	get nodes() {
 		return this._nodes;
 	}
@@ -59,14 +80,14 @@ export default class {
 	_createNodes() {
 		this._nodes = {
 			generator: null,
-			// Gain node node to control sound volume
-			gain: this._audioCtx.createGain(),
-			// Gain node node to control sound envelope
-			envelope: this._audioCtx.createGain(),
 			// Non-linear distortion
 			distortion: undefined,
 			// Performs a Linear Convolution on a given AudioBuffer, often used to achieve a reverb effect
 			reverb: undefined,
+			// Gain node node to control sound volume
+			gain: this._audioCtx.createGain(),
+			// Gain node node to control sound envelope
+			envelope: this._audioCtx.createGain(),
 			// Represent different kinds of filters, tone control devices, and graphic equalizers
 			biquadFilter: undefined,
 			// Compression lowers the volume of the loudest parts and raises the volume of the softest parts
@@ -74,12 +95,16 @@ export default class {
 		};
 	}
 
-	_connectNodes() {
+	_disconnect() {
 		for(var prop in this._nodes) {
 			if (this._nodes.hasOwnProperty(prop)) {
 				this._nodes[prop] && this._nodes[prop].disconnect();
 			}
 		}
+	}
+
+	_connectNodes() {
+		this._disconnect();
 
 		const connectedNodes = Object.values(this._nodes)
 			.filter(node => node && (node.enabled || node.enabled === undefined))
@@ -95,20 +120,19 @@ export default class {
 	}
 
 	_applyEnvelope() {
-		const gain = this._nodes.envelope.gain;
+		const envelope = this._nodes.envelope.gain;
 		const time = this._audioCtx.currentTime;
-		gain.cancelScheduledValues(time);
-		//gain.value = 0  // Deprecated
-		gain.setValueAtTime(0.0001, time); // With a value of 0 exponentialRampToValueAtTime() doesn't work
+		envelope.cancelScheduledValues(time);
+		envelope.setValueAtTime(0.0001, time); // With a value of 0 next exponentialRampToValueAtTime() doesn't work
 		// Attack
 		// Using exponentialRampToValueAtTime() because according MDN it sounds more natural for our ear
-		// gain.linearRampToValueAtTime(1.0, time + this._envelope[0]);
-		gain.exponentialRampToValueAtTime(1.0, time + this._envelope[0]);
+		// envelope.linearRampToValueAtTime(1.0, time + this._envelope[0]);
+		envelope.exponentialRampToValueAtTime(1.0, time + this._envelope[0]);
 		// Decay
 		// Duration / 3 gives a good approximation of 95% while being accurate on the duration
-		gain.setTargetAtTime(this._envelopeSustainLevel, time + this._envelope[0], this._envelope[1]/3 || .001);
+		envelope.setTargetAtTime(this._envelopeSustainLevel, time + this._envelope[0], this._envelope[1]/3 || .001);
 		// Release
-		gain.setTargetAtTime(0.0001, time + this._envelope[0] + this._envelope[1] + this._envelope[2], this._envelope[3]/3 || .001);
+		envelope.setTargetAtTime(0.00001, time + this._envelope[0] + this._envelope[1] + this._envelope[2], this._envelope[3]/3 || .001);
 	}
 
 	_createGenerator() {
@@ -117,7 +141,7 @@ export default class {
 			this._nodes.generator.disconnect();
 		}
 
-		if(this._type === 'noise') {
+		if(this._type === WAVE_SHAPE.WHITE_NOISE) {
 			if(!this._whiteNoiseBuffer) {
 				this._whiteNoiseBuffer = createWhiteNoise(this._audioCtx);
 			}
@@ -141,12 +165,15 @@ export default class {
 		}
 	}
 
-	addNodeByType(type) {
+	addNodeByType(type, params) {
 		let node;
 
 		switch(type) {
 			case NODE_TYPES.DISTORTION:
 				this._nodes.distortion = node = this._audioCtx.createWaveShaper();
+				if (params) {
+					this.setDistortion(params.curve, params.oversample);
+				}
 				break;
 
 			case NODE_TYPES.REVERB:
@@ -190,7 +217,7 @@ export default class {
 		// Duration of impulse in seconds
 		this._impulseDuration = impulseDuration;
 
-		if (impulse === 'noise') {
+		if (impulse === WAVE_SHAPE.WHITE_NOISE) {
 			this._nodes.reverb.buffer = buildNoiseImpulse(this._audioCtx, this.duration, 1, false);
 		} else {
 			const reverbSoundArrayBuffer = base64ToArrayBuffer(impulse);
@@ -240,14 +267,34 @@ export default class {
 		this._createGenerator();
 		this._connectNodes();
 		this._applyEnvelope();
+		// this._nodes.envelope.gain.value = 0;
+		// this._nodes.envelope.gain.setValueAtTime(0, this._audioCtx.currentTime);
 		this.nodes.generator.start();
+
+		return new Promise((resolve, reject) => {
+			window.clearTimeout(this._timeoutID);
+			this._timeoutID = window.setTimeout(() => {
+				resolve();
+				this.stop();
+			}, this.duration * 1000);
+		});
 	}
 
 	stop() {
 		if(this._nodes.generator) {
-			this._nodes.generator.stop();
-			this._nodes.generator.disconnect();
+			// this._nodes.generator.stop();
+			// this._nodes.generator.disconnect();
+			// this._nodes.generator = undefined;
 		}
-		this._nodes.generator = undefined;
+		window.clearTimeout(this._timeoutID);
+	}
+
+	destroy() {
+		this.stop();
+		this._disconnect();
+		delete this._nodes;
+		delete this._dest;
+		delete this._audioCtx;
+		delete this._sas;
 	}
 }

@@ -1,16 +1,13 @@
-import viz from './viz.js';
 import ui from './ui.js';
-import SAS from './lib/sasynth.js';
-import $ from './dom.js';
+import SAS from '../lib/sasynth.js';
+import viz from '../util/viz.js';
+import $ from '../util/dom.js';
 
 let sas;
 let note;
 let audioCtx;
 
 function setDefaultValues() {
-	// Initial volume
-	note.nodes.envelope.gain.value = 1;
-
 	// Size of the Fast Fourier Transform. Must be a power of 2 between 2^5 and 2^15. Defaults to 2048.
 	// (32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, and 32768.)
 	sas.analyser.fftSize = 2048;
@@ -35,16 +32,15 @@ function playSound(renderViz = true) {
 
 function stopSound() {
 	console.log('Sound stop');
-	sas.stop();
 	viz.stop();
 	btnToggleAudio.value = "Play";
 }
 
 // Buttons actions
-let btnToggleAudio     = $('#toggleAudio'),
-	btnExport          = $('#export'),
-	btnProcess         = $('#process'),
-	codefield          = $('#codefield');
+let btnToggleAudio = $('#toggleAudio'),
+	btnExport      = $('#export'),
+	btnProcess     = $('#process'),
+	codefield      = $('#codefield');
 
 function initActions() {
 	btnToggleAudio.addEventListener('click', toggleAudio);
@@ -93,21 +89,21 @@ function showNoteCode() {
 	if(note.nodes.biquadFilter && note.nodes.biquadFilter.enabled) {
 		data.biquadFilter = {
 			type     : note.nodes.biquadFilter.type,
-			detune   : $('#biquad-detune').value,
-			frequency: $('#biquad-frequency').value,
-			gain     : $('#biquad-gain').value,
-			Q        : $('#biquad-q').value
+			detune   : parseInt($('#biquad-detune').value, 10),
+			frequency: parseInt($('#biquad-frequency').value, 10),
+			gain     : parseInt($('#biquad-gain').value, 10),
+			Q        : parseFloat($('#biquad-q').value)
 		};
 	}
 
 	if(note.nodes.dynaCompr && note.nodes.dynaCompr.enabled) {
 		node = note.nodes.dynaCompr;
 		data.dynaCompr = {
-			threshold: $('#dynacompr-threshold').value,
-			knee     : $('#dynacompr-knee').value,
-			ratio    : $('#dynacompr-ratio').value,
-			attack   : $('#dynacompr-attack').value,
-			release  : $('#dynacompr-release').value
+			threshold: parseFloat($('#dynacompr-threshold').value),
+			knee     : parseFloat($('#dynacompr-knee').value),
+			ratio    : parseFloat($('#dynacompr-ratio').value),
+			attack   : parseFloat($('#dynacompr-attack').value, 10),
+			release  : parseFloat($('#dynacompr-release').value, 10)
 		};
 	}
 
@@ -269,7 +265,7 @@ function startAudioProcessing() {
 
 // Release the Kraken with an electric guitar
 function init() {
-	sas = new SAS({analyse: true});
+	sas = new SAS({ analyse: true });
 	note = sas.createNote();
 	audioCtx = sas.context;
 	viz.init($('#canvas'), sas.analyser);

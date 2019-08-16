@@ -1,6 +1,6 @@
-import $ from './dom.js';
-import distortionCurves from './distortionCurves/index.js';
-import impulses from './impulses/index.js';
+import $ from '../util/dom.js';
+import distortionCurves from '../distortionCurves/index.js';
+import impulses from '../impulses/index.js';
 
 let sas;
 let note;
@@ -57,13 +57,14 @@ function setDefaultValues() {
 	// Set values from input ranges
 	$('input[type="range"]').forEach(el => {
 		const action = getActionObj(el);
-		if(action && action instanceof AudioParam) {
+		if(action instanceof AudioParam) {
 			action.setValueAtTime(el.value, audioCtx.currentTime);
 		}
 	});
 
 	setWave();
 	setEnvelope();
+	setMasterVolume();
 	if(note.nodes.distortion && note.nodes.distortion.enabled) {
 		setDistorsion();
 	}
@@ -155,6 +156,10 @@ function setWave() {
 	$('#detune').disabled = note.type === 'noise';
 }
 
+function setMasterVolume() {
+	sas.masterVolume = $('#volume').value;
+}
+
 function getEnvelope() {
 	return [
 		parseFloat($('#attack').value),
@@ -164,7 +169,7 @@ function getEnvelope() {
 	];
 }
 
-function setDistorsion(e) {
+function setDistorsion() {
 	const idx = parseInt($('#distortion-curve').value, 10);
 	const curve = distortionCurves[idx](
 		parseInt($('#distortion').value, 10),
@@ -174,11 +179,11 @@ function setDistorsion(e) {
 	note.setDistortion(curve, oversample);
 }
 
-function setEnvelope(e) {
+function setEnvelope() {
 	note.setEnvelope(...getEnvelope(), $('#sustainlevel').value);
 }
 
-function setBiquadType(e) {
+function setBiquadType() {
 	if (note.nodes.biquadFilter) {
 		let selBiquadType = $('#biquad-type'),
 			params = biquadParamsByType[selBiquadType.value];
@@ -193,7 +198,7 @@ function createReverb() {
 	let impulse;
 	switch (selImpulse.value) {
 		case "0":
-			impulse = 'noise';
+			impulse = 'white_noise';
 			break;
 		default:
 			impulse = impulses[selImpulse.value - 1];
