@@ -21,4 +21,4 @@ export default function $(elOrSelector, selector) {
 		arr[i] = els[i];
 	}
 	return arr;
-};
+}

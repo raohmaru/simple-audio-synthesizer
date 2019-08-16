@@ -9,5 +9,4 @@ export default function(amount, freq, peak = 0.5, valley = -0.5) {
 	}
 	curve[(n_samples >> 1)] = 0;
 	return curve;
-};
-
+}

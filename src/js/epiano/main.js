@@ -101,7 +101,7 @@ function init() {
 	$('#keyboard').innerHTML = html;
 	$keys = $('.key-btn');
 	$keys.forEach((btn, i) => {
-		btn.addEventListener('mousedown', (e) => playNote(i));
+		btn.addEventListener('mousedown', () => playNote(i));
 		accessKeys.set(btn.getAttribute('accesskey'), i);
 	});
 

@@ -12,6 +12,6 @@ indent_style = tab
 [*.{md,markdown}]
 trim_trailing_whitespace = false
 
-[*.{json}]
+[*.{json,eslintrc}]
 indent_style = space
 indent_size = 2

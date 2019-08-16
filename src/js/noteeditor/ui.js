@@ -73,7 +73,7 @@ function setDefaultValues() {
 	}
 }
 
-function resetForm(e) {
+function resetForm() {
 	// Executed after the form is reset
 	setTimeout(() => {
 		setDefaultValues();
@@ -82,14 +82,13 @@ function resetForm(e) {
 }
 
 function selectListener(obj) {
-	let cb = e => {
+	let cb = () => {
 		const handler = getActionObj(obj);
 		if(handler) {
 			handler.call(obj, obj);
 		}
 	}
 	obj.addEventListener('change', e => {
-		const handler = getActionObj(obj);
 		cb(e);
 		playSound();
 	});
@@ -114,7 +113,7 @@ function stepListener(obj) {
 		playSound();
 	});
 
-	audioForm.addEventListener('afterreset', e => {
+	audioForm.addEventListener('afterreset', () => {
 		output.value = obj.value;
 	});
 }
@@ -193,7 +192,7 @@ function setBiquadType() {
 	}
 }
 
-function createReverb() {
+function createReverb() {  // eslint-disable-line no-unused-vars
 	const selImpulse = $('#reverb-impulse');
 	let impulse;
 	switch (selImpulse.value) {
@@ -224,7 +223,7 @@ function init(theSas, playFunc) {
 	});
 
 	$('[data-toggle]').forEach(el => {
-		el.addEventListener('click', (e) => {
+		el.addEventListener('click', () => {
 			$(el.dataset.toggle)[0].classList.toggle('hide');
 		});
 	});

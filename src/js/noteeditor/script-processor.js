@@ -11,7 +11,7 @@ class ScriptProcessor extends AudioWorkletProcessor {
 			this.buffer = event.data.buffer;
 			this.writeIdx = 0;
 		}
-	};
+	}
 
 	process(inputs, outputs) {
 		// By default, the node has single input and output.

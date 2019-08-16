@@ -49,7 +49,7 @@ function initActions() {
 	$('#canvas').addEventListener('click', toggleAudio);
 }
 
-function toggleAudio(e) {
+function toggleAudio() {
 	if(sas.state === 'running') {
 		stopSound();
 	} else {
@@ -83,7 +83,7 @@ function showNoteCode() {
 	if(note.nodes.reverb && note.nodes.reverb.enabled) {
 		node = note.nodes.reverb;
 		const selImpulse = $('#reverb-impulse');
-		data.reverb = selImpulse.options[selImpulse.selectedIndex].textContent;;
+		data.reverb = selImpulse.options[selImpulse.selectedIndex].textContent;
 	}
 
 	if(note.nodes.biquadFilter && note.nodes.biquadFilter.enabled) {
@@ -125,7 +125,7 @@ function saveBlob(blob, fileName) {
 	a.click();
 	window.URL.revokeObjectURL(url);
 	document.body.removeChild(a);
-};
+}
 
 function exportAudio() {
 	btnExport.value = "Exporting...";
@@ -134,11 +134,11 @@ function exportAudio() {
 	if(!mediaStream) {
 		mediaStream = audioCtx.createMediaStreamDestination();
 		mediaRecorder = new MediaRecorder(mediaStream.stream);
-		mediaRecorder.ondataavailable = function(evt) {
+		mediaRecorder.ondataavailable = function(e) {
 			// push each chunk (blobs) in an array
-			chunks.push(evt.data);
+			chunks.push(e.data);
 		};
-		mediaRecorder.onstop = function(evt) {
+		mediaRecorder.onstop = function() {
 			// Make blob out of our blobs, and open it.
 			// https://wiki.whatwg.org/wiki/Video_type_parameters#Browser_Support
 			// const blob = new Blob(chunks, { 'type': 'audio/ogg; codecs=opus' }); // Only works in FF
@@ -251,7 +251,7 @@ function startAudioProcessing() {
 			// Once played, AudioNode cannot be longer used, so each time a new AudioNode is created
 			const source = audioCtx.createBufferSource();
 			source.buffer = buffer;
-			source.addEventListener('ended', (e) => {
+			source.addEventListener('ended', () => {
 				source.disconnect();
 				audioCtx.suspend();
 			});

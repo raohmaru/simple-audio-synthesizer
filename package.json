@@ -1,0 +1,29 @@
+{
+  "name": "simple-audio-synthesizer",
+  "version": "0.8.0",
+  "description": "An audio synthesizer build with Web Audio API",
+  "scripts": {
+    "build": "npm run lint && webpack",
+    "lint": "eslint src/js/**",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/raohmaru/simple-audio-synthesizer.git"
+  },
+  "author": "Raohmaru",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/raohmaru/simple-audio-synthesizer/issues"
+  },
+  "homepage": "https://github.com/raohmaru/simple-audio-synthesizer#readme",
+  "devDependencies": {
+    "@babel/core": "^7.5.5",
+    "@babel/preset-env": "^7.5.5",
+    "babel-eslint": "^10.0.2",
+    "babel-loader": "^8.0.6",
+    "eslint": "6.1.0",
+    "webpack": "^4.39.2",
+    "webpack-cli": "3.3.6"
+  }
+}

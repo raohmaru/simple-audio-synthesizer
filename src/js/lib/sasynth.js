@@ -84,7 +84,7 @@ export default class {
 
 		this.start();
 
-		return new Promise((resolve, reject) => {
+		return new Promise((resolve) => {
 			window.clearTimeout(this._timeoutID);
 			this._timeoutID = window.setTimeout(() => {
 				resolve();

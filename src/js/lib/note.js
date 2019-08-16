@@ -97,7 +97,7 @@ export default class {
 
 	_disconnect() {
 		for(var prop in this._nodes) {
-			if (this._nodes.hasOwnProperty(prop)) {
+			if (Object.prototype.hasOwnProperty.call(this._nodes, prop)) {
 				this._nodes[prop] && this._nodes[prop].disconnect();
 			}
 		}
@@ -271,7 +271,7 @@ export default class {
 		// this._nodes.envelope.gain.setValueAtTime(0, this._audioCtx.currentTime);
 		this.nodes.generator.start();
 
-		return new Promise((resolve, reject) => {
+		return new Promise((resolve) => {
 			window.clearTimeout(this._timeoutID);
 			this._timeoutID = window.setTimeout(() => {
 				resolve();

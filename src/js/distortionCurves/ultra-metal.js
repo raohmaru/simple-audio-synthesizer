@@ -1,5 +1,5 @@
 function ultraMetalequation(deg, k, x) {
-    return ( 3 + k ) * Math.pow(x, 0.6) * 10 * deg / ( Math.PI + k * Math.abs(Math.pow(x, 0.6)) );
+	return ( 3 + k ) * Math.pow(x, 0.6) * 10 * deg / ( Math.PI + k * Math.abs(Math.pow(x, 0.6)) );
 }
 
 // Ultra Metal
@@ -12,7 +12,7 @@ export default function (amount, freq) {
 		let x = i * 2 / n_samples - 1;
 		let result;
 		if (x < 0) {
-		  result = ultraMetalequation(deg, amount, Math.abs(x)) * -1;
+			result = ultraMetalequation(deg, amount, Math.abs(x)) * -1;
 		} else {
 			result = ultraMetalequation(deg, amount, x);
 		}
