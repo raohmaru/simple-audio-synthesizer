@@ -18,12 +18,12 @@
   },
   "homepage": "https://github.com/raohmaru/simple-audio-synthesizer#readme",
   "devDependencies": {
-    "@babel/core": "^7.5.5",
-    "@babel/preset-env": "^7.5.5",
-    "babel-eslint": "^10.0.2",
-    "babel-loader": "^8.0.6",
-    "eslint": "6.1.0",
-    "webpack": "^4.39.2",
+    "@babel/core": "7.5.5",
+    "@babel/preset-env": "7.5.5",
+    "babel-eslint": "10.0.2",
+    "babel-loader": "8.0.6",
+    "eslint": "6.2.2",
+    "webpack": "4.39.2",
     "webpack-cli": "3.3.6"
   }
 }

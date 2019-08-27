@@ -40,7 +40,7 @@ export default class {
 		this.setEnvelope(...params.envelope, params.envelopeSustainLevel);
 		this._dest = sas.destination;
 
-		for(let prop in NODE_TYPES) {
+		for(let prop in NODE_TYPES) {  // eslint-disable-line no-unused-vars
 			const key = NODE_TYPES[prop];
 			if (params[key]) {
 				this.addNodeByType(key, params[key]);
@@ -99,7 +99,7 @@ export default class {
 	}
 
 	_disconnect() {
-		for(let prop in this._nodes) {
+		for(let prop in this._nodes) {  // eslint-disable-line no-unused-vars
 			if (Object.prototype.hasOwnProperty.call(this._nodes, prop)) {
 				this._nodes[prop] && this._nodes[prop].disconnect();
 			}

@@ -50,7 +50,7 @@ Released under The MIT License (MIT).
 - [JavaScript Systems Music](https://teropa.info/blog/2016/07/28/javascript-systems-music.html)
 - [Recreating legendary 8-bit games music with Web Audio API](https://codepen.io/gregh/post/recreating-legendary-8-bit-games-music-with-web-audio-api)
 - [Developing Game Audio with the Web Audio API](https://www.html5rocks.com/en/tutorials/webaudio/games/)
-- [Frequencies for equal-tempered scale](https://gist.github.com/marcgg/94e97def0e8694f906443ed5262e9cbb)
+- [Frequencies for equal-tempered scale](https://pages.mtu.edu/~suits/notefreqs.html)
 - [Electric Guitar Synth in HTML5](https://fazli.sapuan.org/blog/electric-guitar-synth-in-html5/)
 - [Synthesising Drum Sounds with the Web Audio API](https://dev.opera.com/articles/drum-sounds-webaudio/)
 - [How to Generate Noise with the Web Audio API](https://noisehack.com/generate-noise-web-audio-api/)
